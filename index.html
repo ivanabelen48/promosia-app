@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f7ff">
+  <meta name="description" content="Creá flyers promocionales profesionales en segundos con PromosIA.">
+  <title>PromosIA — tu próxima promo, lista para volar</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Lato:wght@400;700;900&family=Montserrat:wght@400;500;600;700;800;900&family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="PromosIA, inicio">
+        <img src="icon.svg" alt="" class="brand-mark">
+        <span class="brand-name">Promos<span>IA</span></span>
+      </a>
+      <span class="topbar-note"><span class="sparkle">✦</span> Tu estudio creativo, en un clic</span>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">DISEÑÁ · PERSONALIZÁ · PUBLICÁ</p>
+          <h1>Tu próxima promo,<br><span>lista para volar.</span></h1>
+          <p class="intro-copy">Transformá tu idea en un flyer que se hace notar. Sin complicaciones, con toda tu onda.</p>
+        </div>
+        <div class="intro-badge" aria-hidden="true"><span>✦</span><small>HECHO PARA<br>EMPRENDER</small></div>
+      </section>
+
+      <div class="workspace">
+        <section class="editor-card" aria-label="Editor de flyer">
+          <div class="editor-heading">
+            <div><p class="eyebrow">TU TALLER CREATIVO</p><h2>Armá tu flyer</h2></div>
+            <span class="step-count" id="stepCount">PASO 1 DE 4</span>
+          </div>
+
+          <section class="editor-section">
+            <div class="section-title"><span class="step-number">01</span><div><h3>Formato del flyer</h3><p>¿Dónde vas a compartirlo?</p></div></div>
+            <div class="format-options">
+              <button class="format-option active" type="button" data-format="story" aria-pressed="true">
+                <span class="format-icon story-icon"></span><span><strong>Historia</strong><small>9:16 · 1080 × 1920</small></span><span class="radio-dot"></span>
+              </button>
+              <button class="format-option" type="button" data-format="square" aria-pressed="false">
+                <span class="format-icon square-icon"></span><span><strong>Post cuadrado</strong><small>1:1 · 1080 × 1080</small></span><span class="radio-dot"></span>
+              </button>
+            </div>
+          </section>
+
+          <section class="editor-section">
+            <div class="section-title"><span class="step-number">02</span><div><h3>Elegí tu fondo</h3><p>Describí una imagen o usá un color.</p></div></div>
+            <label class="field-label" for="backgroundPrompt">Tu idea para el fondo</label>
+            <div class="generate-row">
+              <input id="backgroundPrompt" type="text" placeholder="Ej: hamburguesa gourmet, luz cálida..." maxlength="180">
+              <button class="button button-ai" id="generateButton" type="button"><span>✦</span> <span class="generate-label">Generar fondo</span></button>
+            </div>
+            <p class="helper-text" id="imageHint">La imagen se genera sin texto para que tu oferta sea la protagonista.</p>
+            <div class="background-controls">
+              <label class="field-label" for="backgroundStyle">Estilo de fondo</label>
+              <select id="backgroundStyle" class="select-control">
+                <option value="gradient">Degradado de paleta</option>
+                <option value="solid">Color sólido</option>
+              </select>
+              <label class="field-label color-label" for="backgroundColor">Color de fondo</label>
+              <input id="backgroundColor" class="color-input" type="color" value="#0066ff" aria-label="Color de fondo">
+            </div>
+          </section>
+
+          <section class="editor-section">
+            <div class="section-title"><span class="step-number">03</span><div><h3>Paleta con personalidad</h3><p>Elegí una combinación armónica.</p></div></div>
+            <div class="palette-grid" id="paletteGrid" aria-label="Paletas de colores"></div>
+            <div class="active-colors"><span class="field-label">Colores rápidos</span><div id="quickColors" class="quick-colors"></div></div>
+          </section>
+
+          <section class="editor-section text-section">
+            <div class="section-title"><span class="step-number">04</span><div><h3>Tu mensaje, tu estilo</h3><p>Los cambios aparecen al instante.</p></div></div>
+            <label class="field-label" for="fontPair">Combinación tipográfica</label>
+            <select id="fontPair" class="select-control">
+              <option value="urban">Impacto Urbano · Anton / Montserrat</option>
+              <option value="editorial">Elegante Editorial · Playfair / Lato</option>
+              <option value="friendly">Cercana & Amigable · Fredoka / Nunito</option>
+              <option value="modern">Minimalista Moderna · Space Grotesk / Inter</option>
+            </select>
+
+            <label class="field-label" for="titleText">Título principal</label>
+            <input id="titleText" class="text-input" type="text" maxlength="60" value="2x1 EN BURGERS">
+            <div class="input-options">
+              <label class="small-field">Tamaño <input id="titleSize" type="range" min="48" max="160" value="112"></label>
+              <label class="small-field">Color <select id="titleColor" class="color-select" aria-label="Color del título"></select><input id="titleCustomColor" class="inline-color" type="color" aria-label="Elegir color libre para el título"></label>
+              <label class="small-field">Alineación
+                <select id="titleAlign" class="align-select" aria-label="Alineación del título">
+                  <option value="center">Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field-label" for="subtitleText">Subtítulo / oferta</label>
+            <input id="subtitleText" class="text-input" type="text" maxlength="90" value="Solo por hoy · Envío sin cargo">
+            <div class="input-options">
+              <label class="small-field">Tamaño <input id="subtitleSize" type="range" min="24" max="80" value="44"></label>
+              <label class="small-field">Color <select id="subtitleColor" class="color-select" aria-label="Color del subtítulo"></select><input id="subtitleCustomColor" class="inline-color" type="color" aria-label="Elegir color libre para el subtítulo"></label>
+              <label class="small-field">Alineación
+                <select id="subtitleAlign" class="align-select" aria-label="Alineación del subtítulo">
+                  <option value="center">Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field-label" for="contactText">Pie de contacto</label>
+            <input id="contactText" class="text-input" type="text" maxlength="90" value="Pedí al WhatsApp 351 515-5333">
+            <div class="input-options">
+              <label class="small-field">Tamaño <input id="contactSize" type="range" min="20" max="64" value="34"></label>
+              <label class="small-field">Color <select id="contactColor" class="color-select" aria-label="Color del contacto"></select><input id="contactCustomColor" class="inline-color" type="color" aria-label="Elegir color libre para el contacto"></label>
+              <label class="small-field">Alineación
+                <select id="contactAlign" class="align-select" aria-label="Alineación del contacto">
+                  <option value="center">Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option>
+                </select>
+              </label>
+            </div>
+            <p class="helper-text drag-hint">También podés arrastrar cada texto directamente sobre el flyer.</p>
+          </section>
+
+          <section class="editor-section sticker-section">
+            <div class="section-title"><span class="sticker-spark">✦</span><div><h3>Stickers que venden</h3><p>Agregá un toque de impacto.</p></div></div>
+            <div class="sticker-grid" id="stickerGrid">
+              <button type="button" class="sticker-button" data-sticker="2x1">2x1</button>
+              <button type="button" class="sticker-button" data-sticker="50% OFF">50%<small>OFF</small></button>
+              <button type="button" class="sticker-button" data-sticker="¡NUEVO!">¡NUEVO!</button>
+              <button type="button" class="sticker-button" data-sticker="ENVÍO GRATIS">ENVÍO<small>GRATIS</small></button>
+              <button type="button" class="sticker-button" data-sticker="SOLO HOY">SOLO HOY</button>
+              <button type="button" class="sticker-button" data-sticker="PEDÍ POR WHATSAPP">PEDÍ POR<small>WHATSAPP</small></button>
+              <button type="button" class="sticker-button sticker-star" data-sticker="★">★</button>
+              <button type="button" class="sticker-button sticker-arrow" data-sticker="➜">➜</button>
+            </div>
+            <p class="helper-text">Tocá para agregar. Seleccioná un sticker en el lienzo y usá los controles para cambiar tamaño o eliminarlo.</p>
+            <div class="selected-sticker-controls" id="stickerControls" hidden>
+              <label class="small-field">Tamaño <input id="stickerSize" type="range" min="0.55" max="1.8" step="0.05" value="1"></label>
+              <button class="text-button" type="button" id="deleteSticker">Eliminar sticker</button>
+            </div>
+          </section>
+
+          <button class="button button-reset" id="resetButton" type="button">↺ &nbsp;Limpiar / Empezar de nuevo</button>
+        </section>
+
+        <section class="preview-column" aria-label="Vista previa y descarga">
+          <div class="preview-heading">
+            <div><p class="eyebrow">ASÍ VA QUEDANDO</p><h2>Tu flyer</h2></div>
+            <span class="live-pill"><span></span> En vivo</span>
+          </div>
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="flyerCanvas" aria-label="Vista previa del flyer. Arrastrá los textos y stickers para moverlos."></canvas>
+            <div class="canvas-placeholder" id="canvasPlaceholder"><span>✦</span><p>Tu diseño toma forma acá</p></div>
+          </div>
+          <p class="canvas-tip">✦ Arrastrá los elementos para acomodarlos a tu gusto</p>
+          <button class="button button-download" id="downloadButton" type="button"><span>Descargar flyer listo</span><span class="download-arrow">↓</span></button>
+          <p class="download-note">PNG · Alta calidad · 1080 px</p>
+          <div class="preview-footer"><span>✧</span> Una idea tuya, un diseño que vuela.</div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">Una herramienta creada por <a href="https://codigo-creativo-studio-web.vercel.app/" target="_blank" rel="noopener noreferrer">Código Creativo Studio <span aria-hidden="true">↗</span></a></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</body>
+</html>

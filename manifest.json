@@ -1,0 +1,19 @@
+{
+  "name": "PromosIA — Crea flyers promocionales",
+  "short_name": "PromosIA",
+  "description": "Transformá tu idea en una promo lista para volar.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f7fb",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
