@@ -140,9 +140,12 @@
       const imageHeight = image.naturalHeight * scale;
       ctx.drawImage(image, (width - imageWidth) / 2, (height - imageHeight) / 2, imageWidth, imageHeight);
       const shade = ctx.createLinearGradient(0, 0, 0, height);
-      shade.addColorStop(0, "rgba(10,8,24,.10)");
-      shade.addColorStop(.52, "rgba(10,8,24,.35)");
-      shade.addColorStop(1, "rgba(10,8,24,.68)");
+      shade.addColorStop(0, "rgba(10,8,24,.26)");
+      shade.addColorStop(.18, "rgba(10,8,24,.08)");
+      shade.addColorStop(.36, "rgba(10,8,24,0)");
+      shade.addColorStop(.68, "rgba(10,8,24,0)");
+      shade.addColorStop(.86, "rgba(10,8,24,.08)");
+      shade.addColorStop(1, "rgba(10,8,24,.30)");
       ctx.fillStyle = shade;
       ctx.fillRect(0, 0, width, height);
       return;
@@ -312,15 +315,17 @@
       return;
     }
     const button = $("generateButton");
-    const label = button.querySelector(".generate-label");
-    const originalLabel = label.textContent;
+    const variantButton = $("variantButton");
     const requestId = ++state.imageRequest;
     button.disabled = true;
-    label.textContent = "Generando…";
+    variantButton.disabled = true;
+    button.querySelector(".generate-label").textContent = "Generando…";
+    variantButton.querySelector(".variant-label").textContent = "Generando…";
     $("imageHint").textContent = "Estamos preparando tu fondo, puede tardar unos segundos…";
     const [width, height] = sizes[state.format];
-    const prompt = `${description}, commercial photography, clean background, no text, no words, no lettering, no typography, no watermark`;
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true`;
+    const prompt = `${description}, vibrant commercial advertising photography, bright modern lighting, vivid colors, clean composition, high aesthetic quality, 8k, no text, no letters, no watermark`;
+    const seed = Math.floor(Math.random() * 1000000);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=flux&nologo=true&enhance=true&seed=${seed}`;
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
@@ -329,14 +334,18 @@
       $("backgroundStyle").value = "gradient";
       $("imageHint").textContent = "Fondo listo. Podés seguir editando o descargar tu flyer.";
       button.disabled = false;
-      label.textContent = originalLabel;
+      variantButton.disabled = false;
+      button.querySelector(".generate-label").textContent = "Generar fondo";
+      variantButton.querySelector(".variant-label").textContent = "Otra variante";
       render();
       showToast("¡Fondo generado! Ya podés personalizar tu flyer.");
     };
     image.onerror = () => {
       if (requestId !== state.imageRequest) return;
       button.disabled = false;
-      label.textContent = originalLabel;
+      variantButton.disabled = false;
+      button.querySelector(".generate-label").textContent = "Generar fondo";
+      variantButton.querySelector(".variant-label").textContent = "Otra variante";
       $("imageHint").textContent = "No se pudo cargar la imagen. Revisá tu conexión e intentá de nuevo.";
       showToast("No pudimos generar el fondo. Probá otra vez o usá un color de paleta.");
     };
@@ -570,11 +579,14 @@
     ["title", "subtitle", "contact"].forEach((key) => {
       $(`${key}Align`).value = "center";
     });
-    $("imageHint").textContent = "La imagen se genera sin texto para que tu oferta sea la protagonista.";
+    $("imageHint").textContent = "Generá un fondo publicitario sin texto. Podés pedir otra variante con la misma idea.";
     $("stickerControls").hidden = true;
     const button = $("generateButton");
     button.disabled = false;
     button.querySelector(".generate-label").textContent = "Generar fondo";
+    const variantButton = $("variantButton");
+    variantButton.disabled = false;
+    variantButton.querySelector(".variant-label").textContent = "Otra variante";
     setFormat("story");
     buildPalettes();
     render();
@@ -594,6 +606,7 @@
     render();
   });
   $("generateButton").addEventListener("click", generateBackground);
+  $("variantButton").addEventListener("click", generateBackground);
   $("backgroundPrompt").addEventListener("keydown", (event) => {
     if (event.key === "Enter") generateBackground();
   });

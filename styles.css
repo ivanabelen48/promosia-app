@@ -63,16 +63,20 @@ button { color: inherit; }
 .radio-dot { width: 11px; height: 11px; margin-left: auto; border: 1px solid #d5d2de; border-radius: 50%; }
 .active .radio-dot { border: 3px solid var(--violet); }
 .field-label { display: block; color: #575467; font-size: 10px; font-weight: 700; margin: 10px 0 6px; }
-.generate-row { display: flex; gap: 8px; }
+.generate-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .generate-row input, .text-input, .select-control { min-width: 0; width: 100%; color: #39364a; border: 1px solid #e9e7ef; border-radius: 8px; background: #fff; outline: none; }
 .generate-row input, .text-input { padding: 10px 11px; font-size: 11px; }
+.generate-row input { grid-column: 1 / -1; }
 .generate-row input:focus, .text-input:focus, .select-control:focus { border-color: #b7a0fa; box-shadow: 0 0 0 3px rgba(139,92,246,.08); }
 .generate-row input::placeholder { color: #b1aebb; }
 .button { border: 0; border-radius: 9px; cursor: pointer; font-weight: 700; transition: transform .15s, box-shadow .15s, opacity .15s; }
 .button:hover { transform: translateY(-1px); }
 .button:disabled { opacity: .65; cursor: wait; transform: none; }
-.button-ai { flex: 0 0 auto; padding: 0 12px; color: #fff; font-size: 10px; background: linear-gradient(110deg, var(--violet), #6f6bf7 65%, var(--cyan)); box-shadow: 0 5px 13px rgba(139,92,246,.2); }
+.button-ai, .button-variant { min-height: 36px; padding: 0 10px; font-size: 10px; }
+.button-ai { color: #fff; background: linear-gradient(110deg, var(--violet), #6f6bf7 65%, var(--cyan)); box-shadow: 0 5px 13px rgba(139,92,246,.2); }
 .button-ai span:first-child { color: #ffe99b; }
+.button-variant { border: 1px solid #e9e5f1; color: #695b82; background: #faf9fd; }
+.button-variant:hover { border-color: #c9b8f5; color: #7653c9; }
 .helper-text { color: #9c99a8; font-size: 9px; line-height: 1.5; margin: 7px 0 0; }
 .background-controls { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 0 9px; }
 .background-controls .field-label:first-child { grid-column: 1 / -1; }
