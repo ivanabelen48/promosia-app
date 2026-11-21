@@ -23,6 +23,8 @@
     backgroundStyle: "gradient",
     backgroundColor: "#0066ff",
     backgroundImage: null,
+    uploadedBackgroundUrl: null,
+    pendingUploadUrl: null,
     fontPair: "urban",
     texts: {
       title: { value: "2x1 EN BURGERS", size: 112, color: "#FFF8F0", align: "center", x: 540, y: 765 },
@@ -51,6 +53,29 @@
 
   function getPalette() { return palettes[state.paletteIndex].colors; }
   function getColor(index) { return getPalette()[index]; }
+
+  function setImageGenerationBusy(isBusy) {
+    const button = $("generateButton");
+    const variantButton = $("variantButton");
+    button.disabled = isBusy;
+    variantButton.disabled = isBusy;
+    button.querySelector(".generate-label").textContent = isBusy ? "Generando…" : "Generar fondo";
+    variantButton.querySelector(".variant-label").textContent = isBusy ? "Generando…" : "Otra variante";
+  }
+
+  function releasePendingBackgroundUpload() {
+    if (!state.pendingUploadUrl) return;
+    URL.revokeObjectURL(state.pendingUploadUrl);
+    state.pendingUploadUrl = null;
+  }
+
+  function setBackgroundImage(image, uploadedUrl = null) {
+    if (state.uploadedBackgroundUrl && state.uploadedBackgroundUrl !== uploadedUrl) {
+      URL.revokeObjectURL(state.uploadedBackgroundUrl);
+    }
+    state.uploadedBackgroundUrl = uploadedUrl;
+    state.backgroundImage = image;
+  }
 
   function buildPalettes() {
     const grid = $("paletteGrid");
@@ -314,13 +339,9 @@
       $("backgroundPrompt").focus();
       return;
     }
-    const button = $("generateButton");
-    const variantButton = $("variantButton");
     const requestId = ++state.imageRequest;
-    button.disabled = true;
-    variantButton.disabled = true;
-    button.querySelector(".generate-label").textContent = "Generando…";
-    variantButton.querySelector(".variant-label").textContent = "Generando…";
+    releasePendingBackgroundUpload();
+    setImageGenerationBusy(true);
     $("imageHint").textContent = "Estamos preparando tu fondo, puede tardar unos segundos…";
     const [width, height] = sizes[state.format];
     const prompt = `${description}, vibrant commercial advertising photography, bright modern lighting, vivid colors, clean composition, high aesthetic quality, 8k, no text, no letters, no watermark`;
@@ -330,26 +351,61 @@
     image.crossOrigin = "anonymous";
     image.onload = () => {
       if (requestId !== state.imageRequest) return;
-      state.backgroundImage = image;
+      setBackgroundImage(image);
       $("backgroundStyle").value = "gradient";
       $("imageHint").textContent = "Fondo listo. Podés seguir editando o descargar tu flyer.";
-      button.disabled = false;
-      variantButton.disabled = false;
-      button.querySelector(".generate-label").textContent = "Generar fondo";
-      variantButton.querySelector(".variant-label").textContent = "Otra variante";
+      setImageGenerationBusy(false);
       render();
       showToast("¡Fondo generado! Ya podés personalizar tu flyer.");
     };
     image.onerror = () => {
       if (requestId !== state.imageRequest) return;
-      button.disabled = false;
-      variantButton.disabled = false;
-      button.querySelector(".generate-label").textContent = "Generar fondo";
-      variantButton.querySelector(".variant-label").textContent = "Otra variante";
+      setImageGenerationBusy(false);
       $("imageHint").textContent = "No se pudo cargar la imagen. Revisá tu conexión e intentá de nuevo.";
       showToast("No pudimos generar el fondo. Probá otra vez o usá un color de paleta.");
     };
     image.src = url;
+  }
+
+  function loadUploadedBackground(event) {
+    const input = event.currentTarget;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    input.value = "";
+    if (file.type && !file.type.startsWith("image/")) {
+      showToast("Elegí un archivo de imagen para usarlo como fondo.");
+      return;
+    }
+
+    state.imageRequest += 1;
+    setImageGenerationBusy(false);
+    releasePendingBackgroundUpload();
+    const requestId = state.imageRequest;
+    const objectUrl = URL.createObjectURL(file);
+    state.pendingUploadUrl = objectUrl;
+    const image = new Image();
+    image.onload = () => {
+      if (requestId !== state.imageRequest) {
+        if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
+      setBackgroundImage(image, objectUrl);
+      state.backgroundStyle = "gradient";
+      $("backgroundStyle").value = "gradient";
+      $("imageHint").textContent = "Tu foto está lista como fondo. Textos y stickers quedan por encima.";
+      render();
+      showToast("¡Foto cargada! Ya podés ubicar tus textos y stickers.");
+    };
+    image.onerror = () => {
+      if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
+      URL.revokeObjectURL(objectUrl);
+      if (requestId !== state.imageRequest) return;
+      $("imageHint").textContent = "No se pudo abrir esa foto. Probá con otro archivo de imagen.";
+      showToast("No pudimos cargar esa foto. Elegí otra imagen e intentá de nuevo.");
+    };
+    image.src = objectUrl;
   }
 
   function addSticker(text) {
@@ -556,17 +612,19 @@
     state.paletteIndex = 2;
     state.backgroundStyle = "gradient";
     state.backgroundColor = "#0066ff";
-    state.backgroundImage = null;
     state.fontPair = "urban";
     state.stickers = [];
     state.selectedStickerId = null;
     state.imageRequest += 1;
+    releasePendingBackgroundUpload();
+    setBackgroundImage(null);
     state.texts = {
       title: { value: "2x1 EN BURGERS", size: 112, color: "#FFF8F0", align: "center", x: 540, y: 765 },
       subtitle: { value: "Solo por hoy · Envío sin cargo", size: 44, color: "#FFF8F0", align: "center", x: 540, y: 900 },
       contact: { value: "Pedí al WhatsApp 351 000-0000", size: 34, color: "#FFF8F0", align: "center", x: 540, y: 1695 }
     };
     $("backgroundPrompt").value = "";
+    $("uploadBgInput").value = "";
     $("backgroundStyle").value = "gradient";
     $("backgroundColor").value = state.backgroundColor;
     $("fontPair").value = "urban";
@@ -581,12 +639,7 @@
     });
     $("imageHint").textContent = "Generá un fondo publicitario sin texto. Podés pedir otra variante con la misma idea.";
     $("stickerControls").hidden = true;
-    const button = $("generateButton");
-    button.disabled = false;
-    button.querySelector(".generate-label").textContent = "Generar fondo";
-    const variantButton = $("variantButton");
-    variantButton.disabled = false;
-    variantButton.querySelector(".variant-label").textContent = "Otra variante";
+    setImageGenerationBusy(false);
     setFormat("story");
     buildPalettes();
     render();
@@ -597,9 +650,16 @@
   });
   $("backgroundStyle").addEventListener("change", (event) => {
     state.backgroundStyle = event.target.value;
-    if (state.backgroundStyle === "solid") state.backgroundImage = null;
+    if (state.backgroundStyle === "solid") {
+      state.imageRequest += 1;
+      releasePendingBackgroundUpload();
+      setImageGenerationBusy(false);
+      setBackgroundImage(null);
+    }
     render();
   });
+  $("uploadBgButton").addEventListener("click", () => $("uploadBgInput").click());
+  $("uploadBgInput").addEventListener("change", loadUploadedBackground);
   $("backgroundColor").addEventListener("input", (event) => {
     state.backgroundColor = event.target.value;
     document.querySelectorAll(".quick-color").forEach((button) => button.classList.remove("selected"));
