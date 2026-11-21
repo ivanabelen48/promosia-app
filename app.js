@@ -38,6 +38,8 @@
   const ctx = canvas.getContext("2d");
   const $ = (id) => document.getElementById(id);
   let toastTimer;
+  let finalFlyerBlob = null;
+  let finalFlyerUrl = null;
 
   function showToast(message) {
     const toast = $("toast");
@@ -437,25 +439,106 @@
   canvas.addEventListener("pointerup", stopDragging);
   canvas.addEventListener("pointercancel", stopDragging);
 
-  function downloadFlyer() {
-    render();
+  async function createFlyerBlob() {
+    const selectedStickerId = state.selectedStickerId;
+    state.selectedStickerId = null;
     try {
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          showToast("No se pudo exportar la imagen. Probá sin el fondo externo.");
-          return;
+      render();
+      return await new Promise((resolve, reject) => {
+        try {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("No se pudo generar el PNG."));
+          }, "image/png");
+        } catch (error) {
+          reject(error);
         }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `promosia-flyer-${state.format}.png`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }, "image/png");
+      });
+    } finally {
+      state.selectedStickerId = selectedStickerId;
+      render();
+    }
+  }
+
+  function downloadBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `promosia-flyer-${state.format}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function downloadFlyer() {
+    try {
+      downloadBlob(await createFlyerBlob());
     } catch (error) {
-      showToast("El fondo externo bloqueó la exportación. Volvé a generarlo o usá un fondo de color.");
+      console.error("No se pudo exportar el flyer.", error);
+      showToast("No se pudo exportar el flyer. Revisá el fondo o probá con un color de paleta.");
+    }
+  }
+
+  async function openFinalPreview() {
+    const modal = $("finalPreviewModal");
+    const trigger = $("createFinalButton");
+    const image = $("finalFlyerImage");
+    const loading = $("finalImageLoading");
+    trigger.disabled = true;
+    state.selectedStickerId = null;
+    $("stickerControls").hidden = true;
+    image.hidden = true;
+    loading.hidden = false;
+    loading.textContent = "Preparando tu flyer en alta calidad…";
+    $("finalDownloadButton").disabled = true;
+    $("finalShareButton").disabled = true;
+    if (!modal.open) modal.showModal();
+
+    try {
+      const blob = await createFlyerBlob();
+      if (!modal.open) return;
+      if (finalFlyerUrl) URL.revokeObjectURL(finalFlyerUrl);
+      finalFlyerBlob = blob;
+      finalFlyerUrl = URL.createObjectURL(blob);
+      image.src = finalFlyerUrl;
+      image.hidden = false;
+      loading.hidden = true;
+      $("finalDownloadButton").disabled = false;
+      $("finalShareButton").disabled = false;
+    } catch (error) {
+      console.error("No se pudo preparar la vista previa final.", error);
+      loading.textContent = "No se pudo preparar la imagen. Revisá el fondo e intentá otra vez.";
+      showToast("No se pudo preparar el flyer final. Probá con un fondo de color o paleta.");
+    } finally {
+      trigger.disabled = false;
+    }
+  }
+
+  async function shareFlyer() {
+    if (!finalFlyerBlob) {
+      showToast("Primero generá la vista previa final del flyer.");
+      return;
+    }
+    if (typeof File === "undefined") {
+      showToast("Descargá el PNG y adjuntalo en WhatsApp o tus redes.");
+      return;
+    }
+    const file = new File([finalFlyerBlob], `promosia-flyer-${state.format}.png`, { type: "image/png" });
+    if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function" || !navigator.canShare({ files: [file] })) {
+      showToast("Descargá el PNG y adjuntalo en WhatsApp o tus redes.");
+      return;
+    }
+    try {
+      await navigator.share({
+        files: [file],
+        title: "Mi flyer de PromosIA",
+        text: "¡Mirá la promo que preparé con PromosIA!"
+      });
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      console.error("No se pudo compartir el flyer.", error);
+      showToast("No se pudo compartir. Descargá el PNG y adjuntalo en WhatsApp o tus redes.");
     }
   }
 
@@ -546,6 +629,27 @@
     render();
   });
   $("downloadButton").addEventListener("click", downloadFlyer);
+  $("createFinalButton").addEventListener("click", openFinalPreview);
+  $("finalDownloadButton").addEventListener("click", () => {
+    if (finalFlyerBlob) downloadBlob(finalFlyerBlob);
+  });
+  $("finalShareButton").addEventListener("click", shareFlyer);
+  $("finalContinueButton").addEventListener("click", () => $("finalPreviewModal").close());
+  $("closeFinalPreview").addEventListener("click", () => $("finalPreviewModal").close());
+  $("finalPreviewModal").addEventListener("click", (event) => {
+    if (event.target === $("finalPreviewModal")) $("finalPreviewModal").close();
+  });
+  $("finalPreviewModal").addEventListener("close", () => {
+    if (finalFlyerUrl) URL.revokeObjectURL(finalFlyerUrl);
+    finalFlyerBlob = null;
+    finalFlyerUrl = null;
+    $("finalFlyerImage").removeAttribute("src");
+    $("finalFlyerImage").hidden = true;
+    $("finalImageLoading").hidden = false;
+    $("finalImageLoading").textContent = "Preparando tu flyer en alta calidad…";
+    $("finalDownloadButton").disabled = true;
+    $("finalShareButton").disabled = true;
+  });
   $("resetButton").addEventListener("click", reset);
   window.addEventListener("resize", resizeCanvas);
 

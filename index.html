@@ -158,6 +158,7 @@
             <div class="canvas-placeholder" id="canvasPlaceholder"><span>✦</span><p>Tu diseño toma forma acá</p></div>
           </div>
           <p class="canvas-tip">✦ Arrastrá los elementos para acomodarlos a tu gusto</p>
+          <button class="button button-final" id="createFinalButton" type="button">Crear y ver flyer terminado <span>✨</span></button>
           <button class="button button-download" id="downloadButton" type="button"><span>Descargar flyer listo</span><span class="download-arrow">↓</span></button>
           <p class="download-note">PNG · Alta calidad · 1080 px</p>
           <div class="preview-footer"><span>✧</span> Una idea tuya, un diseño que vuela.</div>
@@ -167,6 +168,24 @@
 
     <footer class="site-footer">Una herramienta creada por <a href="https://codigo-creativo-studio-web.vercel.app/" target="_blank" rel="noopener noreferrer">Código Creativo Studio <span aria-hidden="true">↗</span></a></footer>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="final-modal" id="finalPreviewModal" aria-labelledby="finalPreviewTitle">
+      <div class="final-modal-card">
+        <button class="final-modal-close" id="closeFinalPreview" type="button" aria-label="Cerrar vista previa">×</button>
+        <p class="eyebrow">DISEÑO LISTO PARA COMPARTIR</p>
+        <h2 id="finalPreviewTitle">¡Tu promo está lista para volar! 🦋</h2>
+        <p class="final-modal-copy">Mirá cómo quedó tu creación, lista para llegar a más personas.</p>
+        <div class="final-image-stage">
+          <img id="finalFlyerImage" alt="Vista previa final del flyer promocional" hidden>
+          <p class="final-image-loading" id="finalImageLoading">Preparando tu flyer en alta calidad…</p>
+        </div>
+        <div class="final-actions">
+          <button class="button button-modal-download" id="finalDownloadButton" type="button" disabled>Descargar Flyer (PNG) ⬇️</button>
+          <button class="button button-modal-share" id="finalShareButton" type="button" disabled>Compartir por WhatsApp / Redes 📲</button>
+          <button class="button button-modal-edit" id="finalContinueButton" type="button">Seguir editando ✏️</button>
+        </div>
+        <p class="download-note">PNG · Resolución original · 1080 px</p>
+      </div>
+    </dialog>
   </div>
 </body>
 </html>
