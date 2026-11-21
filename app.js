@@ -27,7 +27,7 @@
     texts: {
       title: { value: "2x1 EN BURGERS", size: 112, color: "#FFF8F0", align: "center", x: 540, y: 765 },
       subtitle: { value: "Solo por hoy · Envío sin cargo", size: 44, color: "#FFF8F0", align: "center", x: 540, y: 900 },
-      contact: { value: "Pedí al WhatsApp 351 515-5333", size: 34, color: "#FFF8F0", align: "center", x: 540, y: 1695 }
+      contact: { value: "Pedí al WhatsApp 351 000-0000", size: 34, color: "#FFF8F0", align: "center", x: 540, y: 1695 }
     },
     stickers: [],
     selectedStickerId: null,
@@ -472,7 +472,7 @@
     state.texts = {
       title: { value: "2x1 EN BURGERS", size: 112, color: "#FFF8F0", align: "center", x: 540, y: 765 },
       subtitle: { value: "Solo por hoy · Envío sin cargo", size: 44, color: "#FFF8F0", align: "center", x: 540, y: 900 },
-      contact: { value: "Pedí al WhatsApp 351 515-5333", size: 34, color: "#FFF8F0", align: "center", x: 540, y: 1695 }
+      contact: { value: "Pedí al WhatsApp 351 000-0000", size: 34, color: "#FFF8F0", align: "center", x: 540, y: 1695 }
     };
     $("backgroundPrompt").value = "";
     $("backgroundStyle").value = "gradient";
