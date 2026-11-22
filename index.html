@@ -80,6 +80,18 @@
             <div class="upload-row">
               <button class="button button-upload" id="uploadBgButton" type="button">Subir foto o sacar con cámara 📷</button>
             </div>
+            <div class="photo-actions" id="uploadPhotoActions" hidden>
+              <p class="photo-actions-hint" id="photoActionHint" aria-live="polite">Elegí qué hacer con tu foto.</p>
+              <div class="photo-mode-buttons" role="group" aria-label="Opciones para la foto subida">
+                <button class="photo-mode-button active" id="keepPhotoButton" data-photo-mode="retain" type="button" aria-pressed="true">🖼️ Conservar fondo</button>
+                <button class="photo-mode-button" id="removePhotoBackgroundButton" data-photo-mode="remove" type="button" aria-pressed="false">✂️ Quitar fondo ✨</button>
+                <button class="photo-mode-button" id="replacePhotoBackgroundButton" data-photo-mode="replace" type="button" aria-pressed="false">🏝️ Reemplazar fondo</button>
+              </div>
+              <label class="product-size-control" id="productSizeControl" for="productSize" hidden>
+                <span>Tamaño del producto <output id="productSizeValue" for="productSize">100%</output></span>
+                <input id="productSize" type="range" min="40" max="160" step="1" value="100">
+              </label>
+            </div>
             <div class="background-controls">
               <label class="field-label" for="backgroundStyle">Estilo de fondo</label>
               <select id="backgroundStyle" class="select-control">

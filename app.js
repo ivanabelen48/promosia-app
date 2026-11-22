@@ -76,8 +76,15 @@
     backgroundStyle: "gradient",
     backgroundColor: "#0066ff",
     backgroundImage: null,
-    uploadedBackgroundUrl: null,
     pendingUploadUrl: null,
+    uploadedPhotoFile: null,
+    uploadedPhotoImage: null,
+    uploadedPhotoUrl: null,
+    photoMode: null,
+    productLayer: null,
+    productLayerUrl: null,
+    uploadRequest: 0,
+    removeBackgroundRequest: 0,
     generatedPrompt: null,
     backgroundModeChosen: false,
     activeGeneration: null,
@@ -141,6 +148,33 @@
     state.pendingUploadUrl = null;
   }
 
+  function releaseUploadedPhoto() {
+    if (state.uploadedPhotoUrl) URL.revokeObjectURL(state.uploadedPhotoUrl);
+    state.uploadedPhotoUrl = null;
+    state.uploadedPhotoFile = null;
+    state.uploadedPhotoImage = null;
+  }
+
+  function releaseProductLayer() {
+    state.removeBackgroundRequest += 1;
+    if (state.productLayerUrl) URL.revokeObjectURL(state.productLayerUrl);
+    state.productLayerUrl = null;
+    state.productLayer = null;
+    $("productSizeControl").hidden = true;
+    $("productSize").value = 100;
+    $("productSizeValue").value = "100%";
+  }
+
+  function updatePhotoModeButtons(mode, disabled = false) {
+    state.photoMode = mode;
+    document.querySelectorAll(".photo-mode-button").forEach((button) => {
+      const active = button.dataset.photoMode === mode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+      button.disabled = disabled;
+    });
+  }
+
   function clearBrandLogo() {
     state.logoRequest += 1;
     if (state.pendingLogoUrl) URL.revokeObjectURL(state.pendingLogoUrl);
@@ -150,11 +184,7 @@
     state.logoImage = null;
   }
 
-  function setBackgroundImage(image, uploadedUrl = null) {
-    if (state.uploadedBackgroundUrl && state.uploadedBackgroundUrl !== uploadedUrl) {
-      URL.revokeObjectURL(state.uploadedBackgroundUrl);
-    }
-    state.uploadedBackgroundUrl = uploadedUrl;
+  function setBackgroundImage(image) {
     state.backgroundImage = image;
   }
 
@@ -440,9 +470,44 @@
     render();
   }
 
+  function drawPaletteBackground(width, height) {
+    if (state.backgroundStyle === "solid") {
+      ctx.fillStyle = state.backgroundColor;
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, width * .8, height);
+      gradient.addColorStop(0, getColor(0));
+      gradient.addColorStop(.52, getColor(1));
+      gradient.addColorStop(1, getColor(3));
+      ctx.fillStyle = gradient;
+    }
+    ctx.fillRect(0, 0, width, height);
+    const glow = ctx.createRadialGradient(width * .72, height * .28, 10, width * .72, height * .28, width * .7);
+    glow.addColorStop(0, "rgba(255,255,255,.15)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.lineWidth = Math.max(2, width * .002);
+    ctx.beginPath();
+    ctx.arc(width * .5, height * .47, width * .38, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   function drawBackground() {
     const width = canvas.width;
     const height = canvas.height;
+    if (state.photoMode === "retain" && state.uploadedPhotoImage &&
+        state.backgroundImage === state.uploadedPhotoImage) {
+      drawPaletteBackground(width, height);
+      const image = state.uploadedPhotoImage;
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      const scale = Math.min(width / sourceWidth, height / sourceHeight);
+      const imageWidth = sourceWidth * scale;
+      const imageHeight = sourceHeight * scale;
+      ctx.drawImage(image, (width - imageWidth) / 2, (height - imageHeight) / 2, imageWidth, imageHeight);
+      return;
+    }
     if (state.backgroundImage && (state.backgroundImage.naturalWidth || state.backgroundImage.width)) {
       const image = state.backgroundImage;
       const sourceWidth = image.naturalWidth || image.width;
@@ -462,27 +527,56 @@
       ctx.fillRect(0, 0, width, height);
       return;
     }
-    if (state.backgroundStyle === "solid") {
-      ctx.fillStyle = state.backgroundColor;
+    drawPaletteBackground(width, height);
+  }
+
+  function getProductLayerBounds(layer = state.productLayer) {
+    if (!layer) return null;
+    const image = layer.image;
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    if (!sourceWidth || !sourceHeight) return null;
+    const scale = Math.min(canvas.width * .62 / sourceWidth, canvas.height * .38 / sourceHeight) * layer.scale;
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    return { x: layer.x - width / 2, y: layer.y - height / 2, width, height };
+  }
+
+  function drawProductLayer() {
+    const layer = state.productLayer;
+    const bounds = getProductLayerBounds(layer);
+    if (!layer || !bounds) return;
+    ctx.save();
+    if (layer.framedFallback) {
+      const radius = Math.min(28, bounds.width * .07, bounds.height * .07);
+      ctx.shadowColor = "rgba(19,15,34,.24)";
+      ctx.shadowBlur = 28;
+      ctx.shadowOffsetY = 10;
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + radius, bounds.y);
+      ctx.arcTo(bounds.x + bounds.width, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, radius);
+      ctx.arcTo(bounds.x + bounds.width, bounds.y + bounds.height, bounds.x, bounds.y + bounds.height, radius);
+      ctx.arcTo(bounds.x, bounds.y + bounds.height, bounds.x, bounds.y, radius);
+      ctx.arcTo(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y, radius);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(layer.image, bounds.x, bounds.y, bounds.width, bounds.height);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,.85)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + radius, bounds.y);
+      ctx.arcTo(bounds.x + bounds.width, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, radius);
+      ctx.arcTo(bounds.x + bounds.width, bounds.y + bounds.height, bounds.x, bounds.y + bounds.height, radius);
+      ctx.arcTo(bounds.x, bounds.y + bounds.height, bounds.x, bounds.y, radius);
+      ctx.arcTo(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y, radius);
+      ctx.closePath();
+      ctx.stroke();
     } else {
-      const gradient = ctx.createLinearGradient(0, 0, width * .8, height);
-      gradient.addColorStop(0, getColor(0));
-      gradient.addColorStop(.52, getColor(1));
-      gradient.addColorStop(1, getColor(3));
-      ctx.fillStyle = gradient;
+      ctx.drawImage(layer.image, bounds.x, bounds.y, bounds.width, bounds.height);
     }
-    ctx.fillRect(0, 0, width, height);
-    // Formas decorativas sutiles para darle profundidad al fondo.
-    const glow = ctx.createRadialGradient(width * .72, height * .28, 10, width * .72, height * .28, width * .7);
-    glow.addColorStop(0, "rgba(255,255,255,.15)");
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = "rgba(255,255,255,.16)";
-    ctx.lineWidth = Math.max(2, width * .002);
-    ctx.beginPath();
-    ctx.arc(width * .5, height * .47, width * .38, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.restore();
   }
 
   function drawBrandAndLogo() {
@@ -661,6 +755,7 @@
   function render() {
     if (!canvas.width || !canvas.height) return;
     drawBackground();
+    drawProductLayer();
     drawBrandAndLogo();
     drawText("title");
     drawText("subtitle");
@@ -688,6 +783,10 @@
     state.stickers.forEach((item, index) => {
       item.y = height * (.55 + (index % 3) * .1);
     });
+    if (state.productLayer) {
+      state.productLayer.x = canvas.width / 2;
+      state.productLayer.y = height * .58;
+    }
     resizeCanvas();
   }
 
@@ -728,6 +827,11 @@
 
     const requestId = ++state.imageRequest;
     const hadPendingUpload = Boolean(state.pendingUploadUrl);
+    if (hadPendingUpload) {
+      state.uploadRequest += 1;
+      $("uploadPhotoActions").hidden = true;
+      updatePhotoModeButtons(null);
+    }
     releasePendingBackgroundUpload();
     if (hadPendingUpload) $("createFinalButton").disabled = false;
     setImageGenerationBusy(true);
@@ -750,7 +854,9 @@
       state.activeGeneration = null;
       setBackgroundImage(image);
       state.generatedPrompt = description;
+      state.backgroundStyle = "gradient";
       $("backgroundStyle").value = "gradient";
+      if (state.photoMode === "retain") updatePhotoModeButtons(null);
       $("imageHint").textContent = source === "pollinations"
         ? "Fondo listo. Podés seguir editando o descargar tu flyer."
         : "Fondo listo con una alternativa automática. Podés seguir editando o descargar tu flyer.";
@@ -818,25 +924,42 @@
 
     cancelBackgroundGeneration();
     setImageGenerationBusy(false);
+    state.uploadRequest += 1;
+    const uploadRequest = state.uploadRequest;
     $("createFinalButton").disabled = true;
     releasePendingBackgroundUpload();
+    setBackgroundImage(null);
+    releaseProductLayer();
+    releaseUploadedPhoto();
+    state.generatedPrompt = null;
+    state.backgroundModeChosen = false;
+    updatePhotoModeButtons("retain", true);
+    $("uploadPhotoActions").hidden = false;
+    $("productSizeControl").hidden = true;
+    $("photoActionHint").textContent = "Cargando tu foto…";
+    $("imageHint").textContent = "Cargando tu foto para preparar el flyer…";
     const requestId = state.imageRequest;
     const objectUrl = URL.createObjectURL(file);
     state.pendingUploadUrl = objectUrl;
     const image = new Image();
     image.onload = () => {
-      if (requestId !== state.imageRequest) {
+      if (requestId !== state.imageRequest || uploadRequest !== state.uploadRequest) {
         if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
         URL.revokeObjectURL(objectUrl);
         return;
       }
       if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
-      setBackgroundImage(image, objectUrl);
+      state.uploadedPhotoFile = file;
+      state.uploadedPhotoImage = image;
+      state.uploadedPhotoUrl = objectUrl;
+      updatePhotoModeButtons("retain");
+      setBackgroundImage(image);
       state.backgroundStyle = "gradient";
       state.generatedPrompt = null;
       state.backgroundModeChosen = false;
       $("backgroundStyle").value = "gradient";
-      $("imageHint").textContent = "Tu foto está lista como fondo. Textos y stickers quedan por encima.";
+      $("photoActionHint").textContent = "Tu foto está lista. Elegí cómo usarla en el flyer.";
+      $("imageHint").textContent = "Tu foto completa está lista como fondo. Elegí una opción para continuar.";
       $("createFinalButton").disabled = false;
       render();
       showToast("¡Foto cargada! Ya podés ubicar tus textos y stickers.");
@@ -844,12 +967,137 @@
     image.onerror = () => {
       if (state.pendingUploadUrl === objectUrl) state.pendingUploadUrl = null;
       URL.revokeObjectURL(objectUrl);
-      if (requestId !== state.imageRequest) return;
+      if (requestId !== state.imageRequest || uploadRequest !== state.uploadRequest) return;
+      $("uploadPhotoActions").hidden = true;
       $("createFinalButton").disabled = false;
       $("imageHint").textContent = "No se pudo abrir esa foto. Probá con otro archivo de imagen.";
       showToast("No pudimos cargar esa foto. Elegí otra imagen e intentá de nuevo.");
     };
     image.src = objectUrl;
+  }
+
+  function loadLocalImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("No se pudo abrir el recorte del producto."));
+      image.src = url;
+    });
+  }
+
+  function withTimeout(promise, timeoutMs) {
+    let timeoutId;
+    const timeout = new Promise((resolve, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error("El recorte tardó demasiado.")), timeoutMs);
+    });
+    return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+  }
+
+  async function applyPhotoMode(mode) {
+    if (!state.uploadedPhotoImage) return;
+    if (state.activeGeneration) {
+      cancelBackgroundGeneration();
+      setImageGenerationBusy(false);
+    }
+    updatePhotoModeButtons(mode);
+    state.generatedPrompt = null;
+    setBackgroundImage(null);
+    state.backgroundModeChosen = mode === "remove";
+    $("createFinalButton").disabled = false;
+
+    if (mode === "retain") {
+      releaseProductLayer();
+      setBackgroundImage(state.uploadedPhotoImage);
+      $("photoActionHint").textContent = "La foto completa está conservada como fondo.";
+      $("imageHint").textContent = "Tu foto está como fondo completo, sin deformarse. Textos y stickers quedan por encima.";
+      render();
+      return;
+    }
+
+    if (state.productLayer) {
+      $("productSizeControl").hidden = false;
+      $("photoActionHint").textContent = mode === "replace"
+        ? "Producto listo. Describí el nuevo escenario para el fondo."
+        : "Producto listo y separado del fondo original.";
+      $("imageHint").textContent = mode === "replace"
+        ? "Producto recortado. Escribí una idea para el nuevo fondo y generala cuando quieras."
+        : "Fondo quitado. El producto queda flotando sobre tu paleta.";
+      render();
+      if (mode === "replace") $("backgroundPrompt").focus();
+      return;
+    }
+
+    $("generateButton").disabled = true;
+    $("variantButton").disabled = true;
+    const requestId = ++state.removeBackgroundRequest;
+    updatePhotoModeButtons(mode, true);
+    $("createFinalButton").disabled = true;
+    $("productSizeControl").hidden = true;
+    $("photoActionHint").textContent = "Recortando tu producto con IA, esperá unos segundos…";
+    $("imageHint").textContent = "Recortando tu producto con IA, esperá unos segundos…";
+    if (mode === "replace") $("backgroundPrompt").focus();
+    render();
+
+    try {
+      const blob = await withTimeout((async () => {
+        const { removeBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/+esm");
+        if (typeof removeBackground !== "function") throw new Error("La librería de recorte no está disponible.");
+        return removeBackground(state.uploadedPhotoFile);
+      })(), 90000);
+      if (requestId !== state.removeBackgroundRequest || !state.uploadedPhotoImage) return;
+      if (!(blob instanceof Blob) || !blob.size) throw new Error("La librería no devolvió un recorte válido.");
+      const productUrl = URL.createObjectURL(blob);
+      let productImage;
+      try {
+        productImage = await loadLocalImage(productUrl);
+      } catch (error) {
+        URL.revokeObjectURL(productUrl);
+        throw error;
+      }
+      if (requestId !== state.removeBackgroundRequest || !state.uploadedPhotoImage) {
+        URL.revokeObjectURL(productUrl);
+        return;
+      }
+      state.productLayerUrl = productUrl;
+      state.productLayer = {
+        image: productImage,
+        x: canvas.width / 2,
+        y: canvas.height * .58,
+        scale: 1,
+        framedFallback: false
+      };
+      $("productSizeControl").hidden = false;
+      $("photoActionHint").textContent = mode === "replace"
+        ? "Producto recortado. Describí el nuevo escenario para el fondo."
+        : "Producto recortado y listo sobre tu paleta.";
+      $("imageHint").textContent = mode === "replace"
+        ? "Producto recortado. Escribí una idea para el nuevo fondo y generala cuando quieras."
+        : "Fondo quitado. El producto queda flotando sobre tu paleta.";
+    } catch (error) {
+      if (requestId !== state.removeBackgroundRequest || !state.uploadedPhotoImage) return;
+      console.error("No se pudo quitar el fondo de la foto; se usará la imagen original enmarcada.", error);
+      state.productLayer = {
+        image: state.uploadedPhotoImage,
+        x: canvas.width / 2,
+        y: canvas.height * .58,
+        scale: 1,
+        framedFallback: true
+      };
+      $("productSizeControl").hidden = false;
+      $("photoActionHint").textContent = "No pudimos quitar el fondo; conservamos tu foto con un marco suave.";
+      $("imageHint").textContent = "Usamos tu foto con un marco redondeado para que puedas seguir editando.";
+      showToast("No se pudo quitar el fondo. Tu foto sigue lista para usar y mover.");
+    } finally {
+      if (requestId === state.removeBackgroundRequest) {
+        setImageGenerationBusy(false);
+        updatePhotoModeButtons(mode);
+        $("createFinalButton").disabled = false;
+        if (state.productLayer) $("productSize").value = 100;
+        $("productSizeValue").value = `${$("productSize").value}%`;
+        render();
+      }
+    }
+    if (mode === "replace") $("backgroundPrompt").focus();
   }
 
   function loadBrandLogo(event) {
@@ -944,6 +1192,12 @@
     return null;
   }
 
+  function hitProductLayer(point) {
+    const bounds = getProductLayerBounds();
+    return Boolean(bounds && point.x >= bounds.x && point.x <= bounds.x + bounds.width &&
+      point.y >= bounds.y && point.y <= bounds.y + bounds.height);
+  }
+
   canvas.addEventListener("pointerdown", (event) => {
     const point = toCanvasPoint(event);
     const sticker = hitSticker(point);
@@ -953,7 +1207,9 @@
     } else {
       selectSticker(null);
       const textKey = hitText(point);
-      state.dragging = textKey ? { type: "text", key: textKey } : null;
+      state.dragging = textKey
+        ? { type: "text", key: textKey }
+        : hitProductLayer(point) ? { type: "product" } : null;
     }
     if (state.dragging) {
       canvas.setPointerCapture(event.pointerId);
@@ -968,6 +1224,16 @@
       const item = state.texts[state.dragging.key];
       item.x = Math.max(20, Math.min(canvas.width - 20, point.x));
       item.y = Math.max(35, Math.min(canvas.height - 35, point.y));
+    } else if (state.dragging.type === "product" && state.productLayer) {
+      const bounds = getProductLayerBounds();
+      const halfWidth = bounds ? bounds.width / 2 : 0;
+      const halfHeight = bounds ? bounds.height / 2 : 0;
+      const minX = Math.min(halfWidth, canvas.width - halfWidth);
+      const maxX = Math.max(halfWidth, canvas.width - halfWidth);
+      const minY = Math.min(halfHeight, canvas.height - halfHeight);
+      const maxY = Math.max(halfHeight, canvas.height - halfHeight);
+      state.productLayer.x = Math.max(minX, Math.min(maxX, point.x));
+      state.productLayer.y = Math.max(minY, Math.min(maxY, point.y));
     } else {
       const item = state.stickers.find((sticker) => sticker.id === state.dragging.id);
       if (item) {
@@ -1075,7 +1341,10 @@
       }
 
       description = $("backgroundPrompt").value.trim();
-      const hasUploadedPhoto = Boolean(state.uploadedBackgroundUrl && state.backgroundImage);
+      const hasUploadedPhoto = Boolean(
+        state.photoMode === "retain" && state.uploadedPhotoImage &&
+        state.backgroundImage === state.uploadedPhotoImage
+      );
       const hasMatchingGeneratedImage = Boolean(
         state.backgroundImage && !hasUploadedPhoto && state.generatedPrompt === description
       );
@@ -1130,6 +1399,13 @@
     cancelBackgroundGeneration();
     releasePendingBackgroundUpload();
     setBackgroundImage(null);
+    state.uploadRequest += 1;
+    releaseProductLayer();
+    releaseUploadedPhoto();
+    state.photoMode = null;
+    updatePhotoModeButtons(null);
+    $("uploadPhotoActions").hidden = true;
+    $("photoActionHint").textContent = "Elegí qué hacer con tu foto.";
     state.generatedPrompt = null;
     state.backgroundModeChosen = false;
     releasePendingBackgroundUpload();
@@ -1141,6 +1417,8 @@
     };
     $("backgroundPrompt").value = "";
     $("uploadBgInput").value = "";
+    $("productSize").value = 100;
+    $("productSizeValue").value = "100%";
     $("brandName").value = "";
     $("brandLogoInput").value = "";
     $("titlePill").checked = false;
@@ -1177,9 +1455,18 @@
     state.backgroundModeChosen = true;
     state.generatedPrompt = null;
     cancelBackgroundGeneration();
+    const hadPendingUpload = Boolean(state.pendingUploadUrl);
+    if (hadPendingUpload) state.uploadRequest += 1;
     releasePendingBackgroundUpload();
     setImageGenerationBusy(false);
     setBackgroundImage(null);
+    if (hadPendingUpload) {
+      $("uploadPhotoActions").hidden = true;
+      updatePhotoModeButtons(null);
+      $("createFinalButton").disabled = false;
+    } else if (state.photoMode === "retain") {
+      updatePhotoModeButtons(null);
+    }
     $("imageHint").textContent = state.backgroundStyle === "solid"
       ? "Fondo sólido seleccionado. Podés subir otra foto cuando quieras."
       : "Degradado de paleta seleccionado. Podés subir otra foto cuando quieras.";
@@ -1188,6 +1475,9 @@
   });
   $("uploadBgButton").addEventListener("click", () => $("uploadBgInput").click());
   $("uploadBgInput").addEventListener("change", loadUploadedBackground);
+  document.querySelectorAll(".photo-mode-button").forEach((button) => {
+    button.addEventListener("click", () => applyPhotoMode(button.dataset.photoMode));
+  });
   $("brandName").addEventListener("input", (event) => {
     state.brandName = event.target.value;
     render();
@@ -1243,6 +1533,12 @@
       selected.scale = Number(event.target.value);
       render();
     }
+  });
+  $("productSize").addEventListener("input", (event) => {
+    if (!state.productLayer) return;
+    state.productLayer.scale = Number(event.target.value) / 100;
+    $("productSizeValue").value = `${event.target.value}%`;
+    render();
   });
   $("deleteSticker").addEventListener("click", () => {
     state.stickers = state.stickers.filter((item) => item.id !== state.selectedStickerId);

@@ -89,6 +89,17 @@ button { color: inherit; }
 .upload-row { margin-top: 9px; }
 .button-upload { width: 100%; min-height: 40px; padding: 9px 10px; border: 1px solid #e1d8f3; color: #5f4b85; background: linear-gradient(105deg,#fbfaff,#f6f1ff); font-size: 11px; }
 .button-upload:hover { border-color: var(--violet); color: var(--violet); background: #f7f3ff; }
+.photo-actions { margin-top: 9px; padding: 10px; border: 1px solid #ece8f4; border-radius: 10px; background: #fcfbff; }
+.photo-actions[hidden], .product-size-control[hidden] { display: none; }
+.photo-actions-hint { margin: 0 0 8px; color: #777286; font-size: 9px; line-height: 1.4; }
+.photo-mode-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.photo-mode-button { min-height: 39px; padding: 7px 5px; border: 1px solid #e7e3ef; border-radius: 8px; color: #625c72; background: #fff; font-size: 9px; line-height: 1.25; font-weight: 700; cursor: pointer; }
+.photo-mode-button:hover, .photo-mode-button.active { border-color: #b7a0fa; color: #7050bd; background: #f7f3ff; }
+.photo-mode-button:disabled { opacity: .6; cursor: wait; }
+.product-size-control { display: block; margin-top: 10px; color: #575467; font-size: 9px; font-weight: 700; }
+.product-size-control span { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.product-size-control output { color: #817a91; font-weight: 600; }
+.product-size-control input { display: block; width: 100%; accent-color: var(--violet); }
 .background-controls { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 0 9px; }
 .background-controls .field-label:first-child { grid-column: 1 / -1; }
 .background-controls .color-label { margin-bottom: 7px; }
@@ -218,6 +229,7 @@ button:focus-visible { outline: 3px solid rgba(0,163,255,.48); outline-offset: 3
   .intro-badge { width: 62px; height: 62px; }
   .format-option { gap: 5px; }
   .format-option small { white-space: normal; }
+  .photo-mode-buttons { grid-template-columns: 1fr; }
   .palette-grid { gap: 5px; }
   .palette-name { font-size: 7px; }
   .input-options { gap: 4px; }
