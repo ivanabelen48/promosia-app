@@ -16,6 +16,22 @@
     friendly: { title: "Fredoka", body: "Nunito" },
     modern: { title: "Space Grotesk", body: "Inter" }
   };
+  const quickTemplates = {
+    gastronomy: { paletteIndex: 0, fontPair: "urban", title: "2x1 EN BURGERS", subtitle: "Solo por hoy · Envío sin cargo" },
+    beauty: { paletteIndex: 1, fontPair: "editorial", title: "20% OFF EN ALISADOS", subtitle: "Reservá tu turno esta semana" },
+    clothing: { paletteIndex: 4, fontPair: "modern", title: "NUEVA TEMPORADA", subtitle: "3 cuotas sin interés en todo el local" },
+    services: { paletteIndex: 2, fontPair: "friendly", title: "TURNO DISPONIBLE", subtitle: "Atención personalizada · Consultanos hoy" }
+  };
+  const promotionalPhrases = [
+    "¡SOLO POR HOY!",
+    "2x1 IMPERDIBLE",
+    "ÚLTIMOS CUPOS",
+    "ENVÍO GRATIS",
+    "SUPER PROMO EFECTIVO",
+    "LANZAMIENTO",
+    "3 CUOTAS SIN INTERÉS",
+    "¡APROVECHÁ HOY!"
+  ];
   const sizes = { story: [1080, 1920], square: [1080, 1080] };
   const state = {
     format: "story",
@@ -29,6 +45,13 @@
     backgroundModeChosen: false,
     activeGeneration: null,
     fontPair: "urban",
+    brandName: "",
+    logoImage: null,
+    logoUrl: null,
+    pendingLogoUrl: null,
+    logoRequest: 0,
+    phraseIndex: -1,
+    textPills: { title: false, subtitle: false },
     texts: {
       title: { value: "2x1 EN BURGERS", size: 112, color: "#FFF8F0", align: "center", x: 540, y: 765 },
       subtitle: { value: "Solo por hoy · Envío sin cargo", size: 44, color: "#FFF8F0", align: "center", x: 540, y: 900 },
@@ -77,6 +100,15 @@
     if (!state.pendingUploadUrl) return;
     URL.revokeObjectURL(state.pendingUploadUrl);
     state.pendingUploadUrl = null;
+  }
+
+  function clearBrandLogo() {
+    state.logoRequest += 1;
+    if (state.pendingLogoUrl) URL.revokeObjectURL(state.pendingLogoUrl);
+    if (state.logoUrl) URL.revokeObjectURL(state.logoUrl);
+    state.pendingLogoUrl = null;
+    state.logoUrl = null;
+    state.logoImage = null;
   }
 
   function setBackgroundImage(image, uploadedUrl = null) {
@@ -346,6 +378,55 @@
     ctx.stroke();
   }
 
+  function drawBrandAndLogo() {
+    const width = canvas.width;
+    const height = canvas.height;
+    if (state.logoImage && state.logoImage.complete && state.logoImage.naturalWidth) {
+      const maxLogoWidth = width * .23;
+      const maxLogoHeight = Math.min(height * .075, width * .12);
+      const scale = Math.min(maxLogoWidth / state.logoImage.naturalWidth, maxLogoHeight / state.logoImage.naturalHeight);
+      const logoWidth = state.logoImage.naturalWidth * scale;
+      const logoHeight = state.logoImage.naturalHeight * scale;
+      const padding = Math.max(10, width * .012);
+      const boxWidth = logoWidth + padding * 2;
+      const boxHeight = logoHeight + padding * 2;
+      const x = (width - boxWidth) / 2;
+      const y = height * .055 - boxHeight / 2;
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,.9)";
+      roundedRect(x, y, boxWidth, boxHeight, Math.max(12, width * .018));
+      ctx.fill();
+      ctx.drawImage(state.logoImage, (width - logoWidth) / 2, (height * .055) - logoHeight / 2, logoWidth, logoHeight);
+      ctx.restore();
+    }
+
+    const brandName = state.brandName.trim();
+    if (!brandName) return;
+    ctx.save();
+    let fontSize = Math.min(36, width * .034);
+    ctx.font = `700 ${fontSize}px "Montserrat", sans-serif`;
+    const maxTextWidth = width * .78;
+    if (ctx.measureText(brandName).width > maxTextWidth) {
+      fontSize *= maxTextWidth / ctx.measureText(brandName).width;
+      ctx.font = `700 ${fontSize}px "Montserrat", sans-serif`;
+    }
+    const textWidth = Math.min(ctx.measureText(brandName).width, maxTextWidth);
+    const paddingX = Math.max(15, fontSize * .65);
+    const paddingY = Math.max(8, fontSize * .35);
+    const boxWidth = textWidth + paddingX * 2;
+    const boxHeight = fontSize + paddingY * 2;
+    const centerY = state.logoImage ? height * .145 : height * .075;
+    ctx.fillStyle = "rgba(15,12,28,.68)";
+    roundedRect((width - boxWidth) / 2, centerY - boxHeight / 2, boxWidth, boxHeight, boxHeight / 2);
+    ctx.fill();
+    ctx.font = `700 ${fontSize}px "Montserrat", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(brandName, width / 2, centerY, maxTextWidth);
+    ctx.restore();
+  }
+
   function wrapLines(text, maxWidth) {
     const words = text.split(/\s+/).filter(Boolean);
     const lines = [];
@@ -379,9 +460,36 @@
     const lines = wrapLines(item.value, canvas.width * .84);
     const lineHeight = item.size * (key === "title" ? 1.07 : 1.2);
     lines.forEach((line, index) => {
-      ctx.fillText(line, item.x, item.y + (index - (lines.length - 1) / 2) * lineHeight, canvas.width * .88);
+      const y = item.y + (index - (lines.length - 1) / 2) * lineHeight;
+      if (state.textPills[key]) {
+        const measuredWidth = Math.min(ctx.measureText(line).width, canvas.width * .88);
+        const paddingX = Math.max(12, item.size * .22);
+        const paddingY = Math.max(7, item.size * .15);
+        const pillWidth = Math.min(canvas.width - 32, measuredWidth + paddingX * 2);
+        const pillHeight = item.size + paddingY * 2;
+        const textOffset = item.align === "center" ? measuredWidth / 2 : item.align === "right" ? measuredWidth : 0;
+        const pillX = Math.max(16, Math.min(canvas.width - pillWidth - 16, item.x - textOffset - paddingX));
+        const lightText = isLightTextColor(item.color);
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,.2)";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = lightText ? "rgba(12,10,20,.78)" : "rgba(255,255,255,.9)";
+        roundedRect(pillX, y - pillHeight / 2, pillWidth, pillHeight, pillHeight * .3);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillText(line, item.x, y, canvas.width * .88);
     });
     ctx.restore();
+  }
+
+  function isLightTextColor(color) {
+    let hex = String(color).replace(/^#/, "");
+    if (/^[\da-f]{3}$/i.test(hex)) hex = hex.split("").map((channel) => channel + channel).join("");
+    if (!/^[\da-f]{6}$/i.test(hex)) return true;
+    const channels = [0, 2, 4].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255);
+    const luminance = channels.map((channel) => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
+    return luminance[0] * .2126 + luminance[1] * .7152 + luminance[2] * .0722 > .45;
   }
 
   function roundedRect(x, y, width, height, radius) {
@@ -446,6 +554,7 @@
   function render() {
     if (!canvas.width || !canvas.height) return;
     drawBackground();
+    drawBrandAndLogo();
     drawText("title");
     drawText("subtitle");
     drawText("contact");
@@ -477,6 +586,22 @@
 
   function setText(key, property, value) {
     state.texts[key][property] = value;
+    render();
+  }
+
+  function applyQuickTemplate(name) {
+    const template = quickTemplates[name];
+    if (!template) return;
+    state.paletteIndex = template.paletteIndex;
+    state.fontPair = template.fontPair;
+    state.backgroundColor = getColor(0);
+    state.texts.title.value = template.title;
+    state.texts.subtitle.value = template.subtitle;
+    $("backgroundColor").value = state.backgroundColor;
+    $("fontPair").value = state.fontPair;
+    $("titleText").value = template.title;
+    $("subtitleText").value = template.subtitle;
+    refreshPaletteControls();
     render();
   }
 
@@ -604,6 +729,42 @@
       $("createFinalButton").disabled = false;
       $("imageHint").textContent = "No se pudo abrir esa foto. Probá con otro archivo de imagen.";
       showToast("No pudimos cargar esa foto. Elegí otra imagen e intentá de nuevo.");
+    };
+    image.src = objectUrl;
+  }
+
+  function loadBrandLogo(event) {
+    const input = event.currentTarget;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    input.value = "";
+    if (file.type && !file.type.startsWith("image/")) {
+      showToast("Elegí un archivo de imagen para usarlo como logo.");
+      return;
+    }
+
+    state.logoRequest += 1;
+    const requestId = state.logoRequest;
+    if (state.pendingLogoUrl) URL.revokeObjectURL(state.pendingLogoUrl);
+    const objectUrl = URL.createObjectURL(file);
+    state.pendingLogoUrl = objectUrl;
+    const image = new Image();
+    image.onload = () => {
+      if (requestId !== state.logoRequest) {
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      if (state.logoUrl) URL.revokeObjectURL(state.logoUrl);
+      state.logoImage = image;
+      state.logoUrl = objectUrl;
+      state.pendingLogoUrl = null;
+      render();
+      showToast("¡Logo listo! Ya aparece en la parte superior de tu flyer.");
+    };
+    image.onerror = () => {
+      if (state.pendingLogoUrl === objectUrl) state.pendingLogoUrl = null;
+      URL.revokeObjectURL(objectUrl);
+      if (requestId === state.logoRequest) showToast("No pudimos cargar ese logo. Probá con otro archivo de imagen.");
     };
     image.src = objectUrl;
   }
@@ -840,6 +1001,10 @@
     state.backgroundStyle = "gradient";
     state.backgroundColor = "#0066ff";
     state.fontPair = "urban";
+    state.brandName = "";
+    state.phraseIndex = -1;
+    state.textPills = { title: false, subtitle: false };
+    clearBrandLogo();
     state.stickers = [];
     state.selectedStickerId = null;
     cancelBackgroundGeneration();
@@ -856,6 +1021,10 @@
     };
     $("backgroundPrompt").value = "";
     $("uploadBgInput").value = "";
+    $("brandName").value = "";
+    $("brandLogoInput").value = "";
+    $("titlePill").checked = false;
+    $("subtitlePill").checked = false;
     $("backgroundStyle").value = "gradient";
     $("backgroundColor").value = state.backgroundColor;
     $("fontPair").value = "urban";
@@ -880,6 +1049,9 @@
   document.querySelectorAll(".format-option").forEach((button) => {
     button.addEventListener("click", () => setFormat(button.dataset.format));
   });
+  document.querySelectorAll(".quick-template").forEach((button) => {
+    button.addEventListener("click", () => applyQuickTemplate(button.dataset.template));
+  });
   $("backgroundStyle").addEventListener("change", (event) => {
     state.backgroundStyle = event.target.value;
     state.backgroundModeChosen = true;
@@ -896,6 +1068,12 @@
   });
   $("uploadBgButton").addEventListener("click", () => $("uploadBgInput").click());
   $("uploadBgInput").addEventListener("change", loadUploadedBackground);
+  $("brandName").addEventListener("input", (event) => {
+    state.brandName = event.target.value;
+    render();
+  });
+  $("uploadLogoButton").addEventListener("click", () => $("brandLogoInput").click());
+  $("brandLogoInput").addEventListener("change", loadBrandLogo);
   $("backgroundColor").addEventListener("input", (event) => {
     state.backgroundColor = event.target.value;
     document.querySelectorAll(".quick-color").forEach((button) => button.classList.remove("selected"));
@@ -905,6 +1083,20 @@
   $("variantButton").addEventListener("click", generateBackground);
   $("backgroundPrompt").addEventListener("keydown", (event) => {
     if (event.key === "Enter") generateBackground();
+  });
+  $("phraseButton").addEventListener("click", () => {
+    state.phraseIndex = (state.phraseIndex + 1) % promotionalPhrases.length;
+    const phrase = promotionalPhrases[state.phraseIndex];
+    $("titleText").value = phrase;
+    setText("title", "value", phrase);
+  });
+  $("titlePill").addEventListener("change", (event) => {
+    state.textPills.title = event.target.checked;
+    render();
+  });
+  $("subtitlePill").addEventListener("change", (event) => {
+    state.textPills.subtitle = event.target.checked;
+    render();
   });
   $("fontPair").addEventListener("change", (event) => { state.fontPair = event.target.value; render(); });
   ["title", "subtitle", "contact"].forEach((key) => {

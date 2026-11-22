@@ -41,6 +41,16 @@
             <span class="step-count" id="stepCount">PASO 1 DE 4</span>
           </div>
 
+          <div class="quick-template-bar" aria-label="Plantillas rápidas por rubro">
+            <div class="quick-template-heading"><strong>Plantillas rápidas</strong><span>Elegí un rubro para empezar</span></div>
+            <div class="quick-template-list">
+              <button class="quick-template" type="button" data-template="gastronomy"><span aria-hidden="true">🍔</span> Gastronomía</button>
+              <button class="quick-template" type="button" data-template="beauty"><span aria-hidden="true">💅</span> Estética &amp; Belleza</button>
+              <button class="quick-template" type="button" data-template="clothing"><span aria-hidden="true">👗</span> Indumentaria</button>
+              <button class="quick-template" type="button" data-template="services"><span aria-hidden="true">🔧</span> Servicios &amp; Turnos</button>
+            </div>
+          </div>
+
           <section class="editor-section">
             <div class="section-title"><span class="step-number">01</span><div><h3>Formato del flyer</h3><p>¿Dónde vas a compartirlo?</p></div></div>
             <div class="format-options">
@@ -85,6 +95,14 @@
 
           <section class="editor-section text-section">
             <div class="section-title"><span class="step-number">04</span><div><h3>Tu mensaje, tu estilo</h3><p>Los cambios aparecen al instante.</p></div></div>
+            <label class="field-label" for="brandName">Nombre de tu marca / @Instagram</label>
+            <div class="brand-entry-row">
+              <input id="brandName" class="text-input" type="text" maxlength="40" placeholder="Ej: @tumarca">
+              <input id="brandLogoInput" type="file" accept="image/*" hidden>
+              <button class="button button-logo" id="uploadLogoButton" type="button">Subir logo 🏷️</button>
+            </div>
+            <p class="helper-text brand-helper">La marca y el logo se ubican en la parte superior del flyer.</p>
+
             <label class="field-label" for="fontPair">Combinación tipográfica</label>
             <select id="fontPair" class="select-control">
               <option value="urban">Impacto Urbano · Anton / Montserrat</option>
@@ -94,7 +112,10 @@
             </select>
 
             <label class="field-label" for="titleText">Título principal</label>
-            <input id="titleText" class="text-input" type="text" maxlength="60" value="2x1 EN BURGERS">
+            <div class="title-entry-row">
+              <input id="titleText" class="text-input" type="text" maxlength="60" value="2x1 EN BURGERS">
+              <button class="button button-phrase" id="phraseButton" type="button">💡 Idea de frase</button>
+            </div>
             <div class="input-options">
               <label class="small-field">Tamaño <input id="titleSize" type="range" min="48" max="160" value="112"></label>
               <label class="small-field">Color <select id="titleColor" class="color-select" aria-label="Color del título"></select><input id="titleCustomColor" class="inline-color" type="color" aria-label="Elegir color libre para el título"></label>
@@ -104,7 +125,6 @@
                 </select>
               </label>
             </div>
-
             <label class="field-label" for="subtitleText">Subtítulo / oferta</label>
             <input id="subtitleText" class="text-input" type="text" maxlength="90" value="Solo por hoy · Envío sin cargo">
             <div class="input-options">
@@ -116,6 +136,11 @@
                 </select>
               </label>
             </div>
+            <fieldset class="text-pill-controls">
+              <legend>Fondo detrás del texto (Pastilla)</legend>
+              <label><input id="titlePill" type="checkbox"> Título principal</label>
+              <label><input id="subtitlePill" type="checkbox"> Subtítulo</label>
+            </fieldset>
 
             <label class="field-label" for="contactText">Pie de contacto</label>
             <input id="contactText" class="text-input" type="text" maxlength="90" value="Pedí al WhatsApp 351 000-0000" placeholder="Ej: Tu WhatsApp o @Instagram">
