@@ -20,7 +20,11 @@
     gastronomy: { paletteIndex: 0, fontPair: "urban", title: "2x1 EN BURGERS", subtitle: "Solo por hoy · Envío sin cargo" },
     beauty: { paletteIndex: 1, fontPair: "editorial", title: "20% OFF EN ALISADOS", subtitle: "Reservá tu turno esta semana" },
     clothing: { paletteIndex: 4, fontPair: "modern", title: "NUEVA TEMPORADA", subtitle: "3 cuotas sin interés en todo el local" },
-    services: { paletteIndex: 2, fontPair: "friendly", title: "TURNO DISPONIBLE", subtitle: "Atención personalizada · Consultanos hoy" }
+    services: { paletteIndex: 2, fontPair: "friendly", title: "TURNO DISPONIBLE", subtitle: "Atención personalizada · Consultanos hoy" },
+    travel: { paletteIndex: 2, fontPair: "modern", title: "ESCAPADA SOÑADA", subtitle: "Paquetes completos · Consultá fechas disponibles" },
+    education: { paletteIndex: 3, fontPair: "friendly", title: "INSCRIPCIONES ABIERTAS", subtitle: "Cupos limitados · Aprendé desde cero" },
+    events: { paletteIndex: 4, fontPair: "urban", title: "NOCHE EN VIVO", subtitle: "Entradas anticipadas · No te lo pierdas" },
+    art: { paletteIndex: 5, fontPair: "editorial", title: "TALLER CREATIVO", subtitle: "Materiales incluidos · Reservá tu lugar" }
   };
   const imagePromptMappings = [
     { keywords: ["lomito"], description: "delicious grilled steak sandwich with melted cheese, lettuce, tomato and crispy french fries", fallback: "sandwich,food" },
@@ -31,18 +35,28 @@
     { keywords: ["cafe", "merienda"], description: "specialty latte coffee with fresh croissants on a cozy cafe table", fallback: "coffee,croissant" },
     { keywords: ["helado"], description: "artisanal ice cream scoops in waffle cone", fallback: "icecream,dessert" },
     { keywords: ["torta", "pasteleria"], description: "luxury decorated chocolate and strawberry cake", fallback: "cake,dessert" },
+    { keywords: ["cerveza", "pinta", "trago"], description: "frosted glass of cold golden beer resting on white Caribbean beach sand, turquoise ocean waves and palm tree bokeh in the sunny background", fallback: "beer,beach" },
+    { keywords: ["pancho", "hot dog"], description: "gourmet loaded hot dog in foreground with vibrant night city street lights and colorful car bokeh blurred in the background", fallback: "hotdog,city" },
+    { keywords: ["viaje", "turismo", "vacaciones", "playa", "sierras"], description: "breathtaking turquoise beach and mountain lake sunset resort view, golden hour travel photography", fallback: "beach,travel" },
+    { keywords: ["escuela", "curso", "cursos", "clase", "clases"], description: "inspiring modern creative studio desk with books and laptop near bright sunlit window", fallback: "school,learning" },
+    { keywords: ["musica", "recital", "recitales", "dj", "show", "shows"], description: "energetic live music stage with vibrant blue and purple spotlights and atmospheric concert haze", fallback: "concert,music" },
+    { id: "art-workshop", keywords: ["arte", "pintura", "taller", "talleres"], description: "artistic studio table with vibrant acrylic paints, brushes and canvas in warm natural light", fallback: "art,studio" },
     { keywords: ["comida", "restaurante", "gastronomia"], description: "appetizing Argentine restaurant meal presented for a local food business", fallback: "restaurant,food", generic: true },
     { keywords: ["zapateria", "zapatos", "zapatillas", "calzado"], description: "modern illuminated shoe store display with stylish sneakers and leather shoes", fallback: "shoes,fashion" },
     { keywords: ["ropa", "indumentaria", "moda"], description: "chic clothing boutique interior with neatly arranged garments on racks", fallback: "fashion,boutique" },
     { keywords: ["peluqueria", "alisado", "estetica", "unas", "belleza", "salon"], description: "modern luxury beauty and hair salon aesthetic, clean bright interior", fallback: "beauty,salon" },
     { keywords: ["gimnasio", "entrenamiento"], description: "modern fitness gym studio with dramatic lighting", fallback: "gym,fitness" },
-    { keywords: ["auto", "autos", "taller"], description: "clean modern automotive service garage", fallback: "automotive,garage" }
+    { id: "automotive", keywords: ["auto", "autos", "taller", "mecanica", "mecanico"], description: "clean modern automotive service garage", fallback: "automotive,garage" }
   ];
   const templateImageContexts = {
     gastronomy: "an appetizing Argentine food business scene with freshly prepared dishes",
     beauty: "a modern beauty salon scene with professional hair and skincare services",
     clothing: "a chic fashion boutique with garments displayed neatly on racks",
-    services: "a clean professional local service workspace with relevant tools and equipment"
+    services: "a clean professional local service workspace with relevant tools and equipment",
+    travel: "a travel agency advertisement with destination scenery and an inviting holiday atmosphere",
+    education: "a modern school and training studio with learning materials and a welcoming classroom atmosphere",
+    events: "a lively live music and entertainment event with stage lights and an energetic atmosphere",
+    art: "a creative art workshop studio with colorful materials, brushes and natural light"
   };
   const promptQualitySuffix = ", realistic commercial photography, logical composition, centered subject with clean space for text overlay, natural studio lighting, sharp focus, no text, no words, no watermark, no distorted objects";
   const promotionalPhrases = [
@@ -222,9 +236,22 @@
   }
 
   function getPromptMappings(normalized) {
-    const matched = imagePromptMappings.filter((mapping) =>
+    let matched = imagePromptMappings.filter((mapping) =>
       mapping.keywords.some((keyword) => containsPromptKeyword(normalized, keyword))
     );
+    const hasWorkshop = containsPromptKeyword(normalized, "taller");
+    const mentionsArt = ["arte", "pintura"].some((keyword) => containsPromptKeyword(normalized, keyword));
+    const mentionsAutomotive = ["auto", "autos", "mecanica", "mecanico"].some((keyword) =>
+      containsPromptKeyword(normalized, keyword)
+    );
+    if (hasWorkshop && !(mentionsArt && mentionsAutomotive)) {
+      const preferredWorkshop = mentionsAutomotive || (!mentionsArt && state.activeTemplate === "services")
+        ? "automotive"
+        : "art-workshop";
+      matched = matched.filter((mapping) =>
+        !["art-workshop", "automotive"].includes(mapping.id) || mapping.id === preferredWorkshop
+      );
+    }
     const specific = matched.filter((mapping) => !mapping.generic);
     return specific.length ? specific : matched;
   }
@@ -269,6 +296,10 @@
     if (state.activeTemplate === "beauty") return "beauty,salon";
     if (state.activeTemplate === "clothing") return "fashion,boutique";
     if (state.activeTemplate === "services") return "service,business";
+    if (state.activeTemplate === "travel") return "beach,travel";
+    if (state.activeTemplate === "education") return "school,learning";
+    if (state.activeTemplate === "events") return "concert,music";
+    if (state.activeTemplate === "art") return "art,studio";
     return "abstract,gradient,texture";
   }
 
