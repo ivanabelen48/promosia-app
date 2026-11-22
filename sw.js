@@ -1,4 +1,4 @@
-const CACHE_NAME = "promosia-cache-v5";
+const CACHE_NAME = "promosia-cache-v6";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

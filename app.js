@@ -87,6 +87,142 @@
     state.backgroundImage = image;
   }
 
+  function averageCornerColor(image, x, y, context) {
+    const radius = 3;
+    const left = Math.max(0, Math.min(image.naturalWidth - radius * 2 - 1, x - radius));
+    const top = Math.max(0, Math.min(image.naturalHeight - radius * 2 - 1, y - radius));
+    const pixels = context.getImageData(left, top, radius * 2 + 1, radius * 2 + 1).data;
+    const total = { red: 0, green: 0, blue: 0 };
+    for (let index = 0; index < pixels.length; index += 4) {
+      total.red += pixels[index];
+      total.green += pixels[index + 1];
+      total.blue += pixels[index + 2];
+    }
+    const count = pixels.length / 4;
+    return {
+      red: total.red / count,
+      green: total.green / count,
+      blue: total.blue / count
+    };
+  }
+
+  function isPollinationsLimitImage(image) {
+    const probe = document.createElement("canvas");
+    probe.width = image.naturalWidth;
+    probe.height = image.naturalHeight;
+    const probeContext = probe.getContext("2d", { willReadFrequently: true });
+    if (!probeContext) throw new Error("No se pudo inspeccionar la imagen generada.");
+    probeContext.drawImage(image, 0, 0);
+    const left = averageCornerColor(image, 15, 15, probeContext);
+    const right = averageCornerColor(image, image.naturalWidth - 15, 15, probeContext);
+    const isBeige = (color) => color.red >= 200 && color.red <= 230 &&
+      color.green >= 185 && color.green <= 215 && color.blue >= 150 && color.blue <= 185;
+    const nearlySame = ["red", "green", "blue"].every((channel) =>
+      Math.abs(left[channel] - right[channel]) <= 8
+    );
+    return isBeige(left) && isBeige(right) && nearlySame;
+  }
+
+  function loadImage(url, timeout = 8000, inspectPollinationsError = false) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      let settled = false;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        image.onload = null;
+        image.onerror = null;
+        if (error) reject(error);
+        else resolve(image);
+      };
+      const timer = window.setTimeout(() => {
+        image.src = "";
+        finish(new Error("La carga de imagen superó el tiempo de espera."));
+      }, timeout);
+      image.crossOrigin = "anonymous";
+      image.onload = () => {
+        try {
+          if (inspectPollinationsError && isPollinationsLimitImage(image)) {
+            finish(new Error("Pollinations está temporalmente al límite."));
+            return;
+          }
+          finish();
+        } catch (error) {
+          finish(error);
+        }
+      };
+      image.onerror = () => finish(new Error("No se pudo cargar la imagen."));
+      image.src = url;
+    });
+  }
+
+  function getFallbackKeywords(description) {
+    const normalized = description.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/\b(paisaje|naturaleza|montana|bosque|playa)\b/.test(normalized)) return "landscape,nature";
+    if (/\b(burger|hamburguesa|comida|alimento|restaurante)\b/.test(normalized)) return "burger,food";
+    if (/\b(zapateria|ropa|moda|zapatos|calzado)\b/.test(normalized)) return "fashion,shoes";
+    if (/\b(peluqueria|estetica|belleza|salon)\b/.test(normalized)) return "beauty,salon";
+    if (/\b(cafe|cafeteria)\b/.test(normalized)) return "coffee";
+    return "abstract,gradient,texture";
+  }
+
+  function createArtisticBackground(width, height) {
+    const art = document.createElement("canvas");
+    art.width = width;
+    art.height = height;
+    const artContext = art.getContext("2d");
+    if (!artContext) throw new Error("No se pudo crear el fondo artístico.");
+
+    const gradient = artContext.createLinearGradient(0, 0, width * .85, height);
+    gradient.addColorStop(0, getColor(0));
+    gradient.addColorStop(.52, getColor(1));
+    gradient.addColorStop(1, getColor(3));
+    artContext.fillStyle = gradient;
+    artContext.fillRect(0, 0, width, height);
+
+    const glowSpots = [
+      [width * .22, height * .2, width * .55, getColor(2)],
+      [width * .82, height * .56, width * .48, getColor(0)],
+      [width * .36, height * .9, width * .5, getColor(1)]
+    ];
+    glowSpots.forEach(([x, y, radius, color]) => {
+      const glow = artContext.createRadialGradient(x, y, 0, x, y, radius);
+      glow.addColorStop(0, `${color}66`);
+      glow.addColorStop(1, `${color}00`);
+      artContext.fillStyle = glow;
+      artContext.fillRect(0, 0, width, height);
+    });
+
+    artContext.save();
+    artContext.globalAlpha = .2;
+    artContext.strokeStyle = getColor(2);
+    artContext.lineWidth = Math.max(2, width * .003);
+    artContext.beginPath();
+    artContext.arc(width * .72, height * .28, width * .36, 0, Math.PI * 2);
+    artContext.stroke();
+    artContext.beginPath();
+    artContext.arc(width * .72, height * .28, width * .25, 0, Math.PI * 2);
+    artContext.stroke();
+    artContext.globalAlpha = .12;
+    artContext.fillStyle = getColor(2);
+    artContext.beginPath();
+    artContext.moveTo(width * .08, height * .78);
+    artContext.lineTo(width * .48, height * .56);
+    artContext.lineTo(width * .38, height * .96);
+    artContext.closePath();
+    artContext.fill();
+    artContext.restore();
+
+    const texture = artContext.createLinearGradient(0, 0, width, 0);
+    texture.addColorStop(0, "rgba(255,255,255,.07)");
+    texture.addColorStop(.5, "rgba(255,255,255,0)");
+    texture.addColorStop(1, "rgba(0,0,0,.12)");
+    artContext.fillStyle = texture;
+    artContext.fillRect(0, 0, width, height);
+    return art;
+  }
+
   function buildPalettes() {
     const grid = $("paletteGrid");
     grid.innerHTML = "";
@@ -168,11 +304,13 @@
   function drawBackground() {
     const width = canvas.width;
     const height = canvas.height;
-    if (state.backgroundImage && state.backgroundImage.complete && state.backgroundImage.naturalWidth) {
+    if (state.backgroundImage && (state.backgroundImage.naturalWidth || state.backgroundImage.width)) {
       const image = state.backgroundImage;
-      const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-      const imageWidth = image.naturalWidth * scale;
-      const imageHeight = image.naturalHeight * scale;
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      const scale = Math.max(width / sourceWidth, height / sourceHeight);
+      const imageWidth = sourceWidth * scale;
+      const imageHeight = sourceHeight * scale;
       ctx.drawImage(image, (width - imageWidth) / 2, (height - imageHeight) / 2, imageWidth, imageHeight);
       const shade = ctx.createLinearGradient(0, 0, 0, height);
       shade.addColorStop(0, "rgba(10,8,24,.26)");
@@ -362,42 +500,65 @@
     setImageGenerationBusy(true);
     state.backgroundModeChosen = false;
     $("imageHint").textContent = "Estamos preparando tu fondo, puede tardar unos segundos…";
-    const [width, height] = sizes[state.format];
     const promptMejorado = `${description}, professional commercial food and product photography, appetizing, studio lighting, vivid colors, ultra sharp, clean aesthetic, no text, no watermark, no weird artifacts`;
     const seed = Math.floor(Math.random() * 1000000);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=${width}&height=${height}&enhance=true&nologo=true&seed=${seed}`;
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=768&height=1024&nologo=true&seed=${seed}`;
+    const [width, height] = sizes[state.format];
+    const fallbackUrl = `https://loremflickr.com/${width}/${height}/${getFallbackKeywords(description)}`;
     let resolveGeneration;
     const promise = new Promise((resolve) => { resolveGeneration = resolve; });
     state.activeGeneration = { prompt: description, requestId, promise, resolve: resolveGeneration };
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
+    const finishGeneration = (image, source) => {
       if (requestId !== state.imageRequest) {
         resolveGeneration(false);
-        return;
+        return false;
       }
       state.activeGeneration = null;
       setBackgroundImage(image);
       state.generatedPrompt = description;
       $("backgroundStyle").value = "gradient";
-      $("imageHint").textContent = "Fondo listo. Podés seguir editando o descargar tu flyer.";
+      $("imageHint").textContent = source === "pollinations"
+        ? "Fondo listo. Podés seguir editando o descargar tu flyer."
+        : "Fondo listo con una alternativa automática. Podés seguir editando o descargar tu flyer.";
       setImageGenerationBusy(false);
       render();
-      showToast("¡Fondo generado! Ya podés personalizar tu flyer.");
+      showToast(source === "pollinations"
+        ? "¡Fondo generado! Ya podés personalizar tu flyer."
+        : "Preparamos un fondo alternativo para tu flyer.");
       resolveGeneration(true);
+      return true;
     };
-    image.onerror = () => {
+
+    const useArtisticFallback = () => {
       if (requestId !== state.imageRequest) {
         resolveGeneration(false);
         return;
       }
-      state.activeGeneration = null;
-      setImageGenerationBusy(false);
-      $("imageHint").textContent = "No se pudo cargar la imagen. Revisá tu conexión e intentá de nuevo.";
-      showToast("No pudimos generar el fondo. Probá otra vez o usá un color de paleta.");
-      resolveGeneration(false);
+      const art = createArtisticBackground(width, height);
+      finishGeneration(art, "artistic");
     };
-    image.src = url;
+
+    loadImage(pollinationsUrl, 8000, true)
+      .then((image) => finishGeneration(image, "pollinations"))
+      .catch(() => {
+        if (requestId !== state.imageRequest) {
+          resolveGeneration(false);
+          return;
+        }
+        return loadImage(fallbackUrl, 8000)
+          .then((image) => finishGeneration(image, "fallback"))
+          .catch(() => useArtisticFallback());
+      })
+      .catch((error) => {
+        console.error("No se pudo preparar un fondo alternativo.", error);
+        if (requestId === state.imageRequest) {
+          state.activeGeneration = null;
+          setImageGenerationBusy(false);
+          $("imageHint").textContent = "No se pudo preparar un fondo. Revisá tu navegador e intentá de nuevo.";
+          showToast("No pudimos preparar el fondo. Probá otra vez o elegí un color de paleta.");
+          resolveGeneration(false);
+        }
+      });
     return promise;
   }
 
