@@ -22,6 +22,29 @@
     clothing: { paletteIndex: 4, fontPair: "modern", title: "NUEVA TEMPORADA", subtitle: "3 cuotas sin interés en todo el local" },
     services: { paletteIndex: 2, fontPair: "friendly", title: "TURNO DISPONIBLE", subtitle: "Atención personalizada · Consultanos hoy" }
   };
+  const imagePromptMappings = [
+    { keywords: ["lomito"], description: "delicious grilled steak sandwich with melted cheese, lettuce, tomato and crispy french fries", fallback: "sandwich,food" },
+    { keywords: ["coca", "gaseosa"], description: "cold cola glass with ice and condensation", fallback: "cola,drink" },
+    { keywords: ["hamburguesa", "burger"], description: "gourmet double cheeseburger with melted cheddar and fries", fallback: "burger,food" },
+    { keywords: ["pizza"], description: "artisanal pepperoni and mozzarella pizza straight from the oven", fallback: "pizza,food" },
+    { keywords: ["empanadas"], description: "golden baked Argentine empanadas on a rustic wooden board", fallback: "empanadas,food" },
+    { keywords: ["cafe", "merienda"], description: "specialty latte coffee with fresh croissants on a cozy cafe table", fallback: "coffee,croissant" },
+    { keywords: ["helado"], description: "artisanal ice cream scoops in waffle cone", fallback: "icecream,dessert" },
+    { keywords: ["torta", "pasteleria"], description: "luxury decorated chocolate and strawberry cake", fallback: "cake,dessert" },
+    { keywords: ["comida", "restaurante", "gastronomia"], description: "appetizing Argentine restaurant meal presented for a local food business", fallback: "restaurant,food", generic: true },
+    { keywords: ["zapateria", "zapatos", "zapatillas", "calzado"], description: "modern illuminated shoe store display with stylish sneakers and leather shoes", fallback: "shoes,fashion" },
+    { keywords: ["ropa", "indumentaria", "moda"], description: "chic clothing boutique interior with neatly arranged garments on racks", fallback: "fashion,boutique" },
+    { keywords: ["peluqueria", "alisado", "estetica", "unas", "belleza", "salon"], description: "modern luxury beauty and hair salon aesthetic, clean bright interior", fallback: "beauty,salon" },
+    { keywords: ["gimnasio", "entrenamiento"], description: "modern fitness gym studio with dramatic lighting", fallback: "gym,fitness" },
+    { keywords: ["auto", "autos", "taller"], description: "clean modern automotive service garage", fallback: "automotive,garage" }
+  ];
+  const templateImageContexts = {
+    gastronomy: "an appetizing Argentine food business scene with freshly prepared dishes",
+    beauty: "a modern beauty salon scene with professional hair and skincare services",
+    clothing: "a chic fashion boutique with garments displayed neatly on racks",
+    services: "a clean professional local service workspace with relevant tools and equipment"
+  };
+  const promptQualitySuffix = ", realistic commercial photography, logical composition, centered subject with clean space for text overlay, natural studio lighting, sharp focus, no text, no words, no watermark, no distorted objects";
   const promotionalPhrases = [
     "¡SOLO POR HOY!",
     "2x1 IMPERDIBLE",
@@ -44,6 +67,7 @@
     generatedPrompt: null,
     backgroundModeChosen: false,
     activeGeneration: null,
+    activeTemplate: "gastronomy",
     fontPair: "urban",
     brandName: "",
     logoImage: null,
@@ -189,13 +213,62 @@
     });
   }
 
+  function normalizePromptText(value) {
+    return String(value || "").toLocaleLowerCase("es-AR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function containsPromptKeyword(text, keyword) {
+    return new RegExp(`(^|[^a-z0-9])${keyword}(?=$|[^a-z0-9])`, "i").test(text);
+  }
+
+  function getPromptMappings(normalized) {
+    const matched = imagePromptMappings.filter((mapping) =>
+      mapping.keywords.some((keyword) => containsPromptKeyword(normalized, keyword))
+    );
+    const specific = matched.filter((mapping) => !mapping.generic);
+    return specific.length ? specific : matched;
+  }
+
+  function buildLogicalImagePrompt(userText) {
+    const original = String(userText || "").trim();
+    const normalized = normalizePromptText(original);
+    const matchedMappings = imagePromptMappings.filter((mapping) =>
+      mapping.keywords.some((keyword) => containsPromptKeyword(normalized, keyword))
+    );
+    const selectedMappings = getPromptMappings(normalized);
+
+    if (selectedMappings.length) {
+      const matchedKeywords = matchedMappings.flatMap((mapping) =>
+        mapping.keywords.filter((keyword) => containsPromptKeyword(normalized, keyword))
+      );
+      let additionalDetails = normalized;
+      matchedKeywords.forEach((keyword) => {
+        const expression = new RegExp(`(^|[^a-z0-9])(${keyword})(?=$|[^a-z0-9])`, "g");
+        additionalDetails = additionalDetails.replace(expression, "$1 ");
+      });
+      additionalDetails = additionalDetails
+        .replace(/\b(?:de|del|la|el|y|con|para|en|un|una|unos|unas|mi|por|favor)\b/g, " ")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const descriptions = [...new Set(selectedMappings.map((mapping) => mapping.description))];
+      if (additionalDetails) descriptions.push(`additional requested details: ${additionalDetails}`);
+      return `${descriptions.join(", ")}${promptQualitySuffix}`;
+    }
+
+    const context = templateImageContexts[state.activeTemplate] || "a polished small-business product or service advertising scene";
+    return `${original}, ${context}${promptQualitySuffix}`;
+  }
+
   function getFallbackKeywords(description) {
-    const normalized = description.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const normalized = normalizePromptText(description);
+    const mappedKeywords = [...new Set(getPromptMappings(normalized).flatMap((mapping) => mapping.fallback.split(",")))];
+    if (mappedKeywords.length) return mappedKeywords.slice(0, 4).join(",");
     if (/\b(paisaje|naturaleza|montana|bosque|playa)\b/.test(normalized)) return "landscape,nature";
-    if (/\b(burger|hamburguesa|comida|alimento|restaurante)\b/.test(normalized)) return "burger,food";
-    if (/\b(zapateria|ropa|moda|zapatos|calzado)\b/.test(normalized)) return "fashion,shoes";
-    if (/\b(peluqueria|estetica|belleza|salon)\b/.test(normalized)) return "beauty,salon";
-    if (/\b(cafe|cafeteria)\b/.test(normalized)) return "coffee";
+    if (state.activeTemplate === "gastronomy") return "food,restaurant";
+    if (state.activeTemplate === "beauty") return "beauty,salon";
+    if (state.activeTemplate === "clothing") return "fashion,boutique";
+    if (state.activeTemplate === "services") return "service,business";
     return "abstract,gradient,texture";
   }
 
@@ -268,6 +341,7 @@
       button.innerHTML = `<span class="swatches">${swatches}</span><span class="palette-name">${palette.name}</span>`;
       button.addEventListener("click", () => {
         state.paletteIndex = index;
+        state.activeTemplate = ({ 0: "gastronomy", 1: "beauty", 2: "services", 4: "clothing", 5: "gastronomy" })[index] || null;
         // Conserva cualquier color existente que no pertenezca a la paleta.
         refreshPaletteControls();
         render();
@@ -592,6 +666,7 @@
   function applyQuickTemplate(name) {
     const template = quickTemplates[name];
     if (!template) return;
+    state.activeTemplate = name;
     state.paletteIndex = template.paletteIndex;
     state.fontPair = template.fontPair;
     state.backgroundColor = getColor(0);
@@ -625,7 +700,7 @@
     setImageGenerationBusy(true);
     state.backgroundModeChosen = false;
     $("imageHint").textContent = "Estamos preparando tu fondo, puede tardar unos segundos…";
-    const promptMejorado = `${description}, professional commercial food and product photography, appetizing, studio lighting, vivid colors, ultra sharp, clean aesthetic, no text, no watermark, no weird artifacts`;
+    const promptMejorado = buildLogicalImagePrompt(description);
     const seed = Math.floor(Math.random() * 1000000);
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=768&height=1024&nologo=true&seed=${seed}`;
     const [width, height] = sizes[state.format];
@@ -1001,6 +1076,7 @@
     state.backgroundStyle = "gradient";
     state.backgroundColor = "#0066ff";
     state.fontPair = "urban";
+    state.activeTemplate = "gastronomy";
     state.brandName = "";
     state.phraseIndex = -1;
     state.textPills = { title: false, subtitle: false };
