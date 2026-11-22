@@ -81,6 +81,7 @@
     generatedPrompt: null,
     backgroundModeChosen: false,
     activeGeneration: null,
+    lastPollinationsAt: 0,
     activeTemplate: "gastronomy",
     fontPair: "urban",
     brandName: "",
@@ -183,14 +184,15 @@
     const probeContext = probe.getContext("2d", { willReadFrequently: true });
     if (!probeContext) throw new Error("No se pudo inspeccionar la imagen generada.");
     probeContext.drawImage(image, 0, 0);
-    const left = averageCornerColor(image, 15, 15, probeContext);
-    const right = averageCornerColor(image, image.naturalWidth - 15, 15, probeContext);
-    const isBeige = (color) => color.red >= 200 && color.red <= 230 &&
-      color.green >= 185 && color.green <= 215 && color.blue >= 150 && color.blue <= 185;
-    const nearlySame = ["red", "green", "blue"].every((channel) =>
-      Math.abs(left[channel] - right[channel]) <= 8
-    );
-    return isBeige(left) && isBeige(right) && nearlySame;
+    const corners = [
+      averageCornerColor(image, 15, 15, probeContext),
+      averageCornerColor(image, image.naturalWidth - 15, 15, probeContext),
+      averageCornerColor(image, 15, image.naturalHeight - 15, probeContext)
+    ];
+    return ["red", "green", "blue"].every((channel) => {
+      const values = corners.map((color) => color[channel]);
+      return Math.max(...values) - Math.min(...values) <= 6;
+    });
   }
 
   function loadImage(url, timeout = 8000, inspectPollinationsError = false) {
@@ -735,7 +737,8 @@
     const seed = Math.floor(Math.random() * 1000000);
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=768&height=1024&nologo=true&seed=${seed}`;
     const [width, height] = sizes[state.format];
-    const fallbackUrl = `https://loremflickr.com/${width}/${height}/${getFallbackKeywords(description)}`;
+    const shouldSkipPollinations = Date.now() - state.lastPollinationsAt < 45000;
+    const fallbackUrl = `https://loremflickr.com/${width}/${height}/${getFallbackKeywords(description)}?random=${Date.now()}`;
     let resolveGeneration;
     const promise = new Promise((resolve) => { resolveGeneration = resolve; });
     state.activeGeneration = { prompt: description, requestId, promise, resolve: resolveGeneration };
@@ -769,17 +772,27 @@
       finishGeneration(art, "artistic");
     };
 
-    loadImage(pollinationsUrl, 8000, true)
-      .then((image) => finishGeneration(image, "pollinations"))
-      .catch(() => {
-        if (requestId !== state.imageRequest) {
-          resolveGeneration(false);
-          return;
-        }
-        return loadImage(fallbackUrl, 8000)
-          .then((image) => finishGeneration(image, "fallback"))
-          .catch(() => useArtisticFallback());
-      })
+    const loadFallback = () => loadImage(fallbackUrl, 8000)
+      .then((image) => finishGeneration(image, "fallback"))
+      .catch(() => useArtisticFallback());
+    const generation = shouldSkipPollinations
+      ? loadFallback()
+      : (() => {
+        state.lastPollinationsAt = Date.now();
+        return loadImage(pollinationsUrl, 8000, true)
+          .then((image) => {
+            if (requestId === state.imageRequest) state.lastPollinationsAt = Date.now();
+            return finishGeneration(image, "pollinations");
+          })
+          .catch(() => {
+            if (requestId !== state.imageRequest) {
+              resolveGeneration(false);
+              return;
+            }
+            return loadFallback();
+          });
+      })();
+    generation
       .catch((error) => {
         console.error("No se pudo preparar un fondo alternativo.", error);
         if (requestId === state.imageRequest) {
